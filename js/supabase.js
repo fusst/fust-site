@@ -55,7 +55,11 @@ export async function getCurrentUser() {
   const client = await initializeSupabase();
   if (!client) return null;
 
-  const { data, error } = await client.auth.getUser();
+  const { data: sessionData, error: sessionError } = await client.auth.getSession();
+  if (sessionError) throw sessionError;
+  if (!sessionData.session) return null;
+
+  const { data, error } = await client.auth.getUser(sessionData.session.access_token);
   if (error) throw error;
   return data.user;
 }
