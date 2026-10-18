@@ -43,6 +43,15 @@
       <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
       <symbol id="i-external" viewBox="0 0 24 24"><path d="M15 3h6v6m-11 5L21 3"/><path d="M19 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h6"/></symbol>
       <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9m-8 13h4"/></symbol>
+      <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M4 4h16l2 11v4a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-4z"/><path d="M2 15h5l2 3h6l2-3h5"/></symbol>
+      <symbol id="i-headset" viewBox="0 0 24 24"><path d="M3 14v-3a9 9 0 0 1 18 0v3"/><path d="M5 14h2a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2zm12 0h2a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2z"/></symbol>
+      <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11z"/><path d="m9 12 2 2 4-4"/></symbol>
+      <symbol id="i-wrench" viewBox="0 0 24 24"><path d="M14.7 6.3a5 5 0 0 0-6.4 6.4L3 18a2 2 0 0 0 3 3l5.3-5.3a5 5 0 0 0 6.4-6.4L14 13l-3-3z"/></symbol>
+      <symbol id="i-send" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4zM22 2 11 13"/></symbol>
+      <symbol id="i-users-round" viewBox="0 0 24 24"><path d="M18 21a8 8 0 0 0-16 0m8-10a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm12 10a8 8 0 0 0-6-7.75m-3-10.25a4 4 0 0 1 0 8"/></symbol>
+      <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M5.64 9A7 7 0 0 1 18 6l2 2m-16 8 2 2a7 7 0 0 0 12.36-3"/></symbol>
+      <symbol id="i-settings" viewBox="0 0 24 24"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z"/><path d="m19.4 15 .1.1a1.7 1.7 0 0 1-2.4 2.4l-.1-.1a1.7 1.7 0 0 0-2.9 1.2v.2a1.7 1.7 0 0 1-3.4 0v-.2a1.7 1.7 0 0 0-2.9-1.2l-.1.1a1.7 1.7 0 1 1-2.4-2.4l.1-.1a1.7 1.7 0 0 0-1.2-2.9H4a1.7 1.7 0 0 1 0-3.4h.2a1.7 1.7 0 0 0 1.2-2.9l-.1-.1a1.7 1.7 0 1 1 2.4-2.4l.1.1a1.7 1.7 0 0 0 2.9-1.2V2a1.7 1.7 0 0 1 3.4 0v.2a1.7 1.7 0 0 0 2.9 1.2l.1-.1a1.7 1.7 0 1 1 2.4 2.4l-.1.1a1.7 1.7 0 0 0 1.2 2.9h.2a1.7 1.7 0 0 1 0 3.4h-.2a1.7 1.7 0 0 0-1.2 2.9z"/></symbol>
+      <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="12" rx="2"/><path d="M8 10V7a4 4 0 1 1 8 0v3m-4 5v2"/></symbol>
     </svg>
 
     <div class="app-shell">
@@ -51,19 +60,21 @@
           <span class="brand-mark"><span class="brand-mark-inner">F.</span><span class="brand-spark"></span></span>
           <span class="brand-copy">fusst<span>hub</span><small>STUDENT PORTAL</small></span>
         </a>
-        <div class="sidebar-context"><span class="context-dot"></span> SOFTWARE ENGINEERING <span class="context-year">BSSE</span></div>
+        <div class="sidebar-context"><span class="context-dot"></span> YOUR CLASS <span class="context-year">BSSE</span></div>
         <div class="nav-label">WORKSPACE</div>
         <nav class="main-nav">
           <a class="nav-link is-active" href="#dashboard" data-section-link="dashboard" aria-current="page"><svg class="icon"><use href="#i-grid"/></svg><span>Dashboard</span></a>
           <a class="nav-link" href="#notices" data-section-link="notices"><svg class="icon"><use href="#i-megaphone"/></svg><span>Notices</span><span class="nav-count" id="notice-nav-count">0</span></a>
+          <a class="nav-link" href="#inbox" data-section-link="inbox"><svg class="icon"><use href="#i-inbox"/></svg><span>Inbox</span><span class="nav-count" id="notification-nav-count" hidden>0</span></a>
           <a class="nav-link" href="#timetable" data-section-link="timetable"><svg class="icon"><use href="#i-calendar"/></svg><span>Timetable</span></a>
           <a class="nav-link" href="#assignments" data-section-link="assignments"><svg class="icon"><use href="#i-clipboard"/></svg><span>Assignments</span><span class="nav-count nav-count-warm" id="assignment-nav-count">0</span></a>
           <a class="nav-link" href="#resources" data-section-link="resources"><svg class="icon"><use href="#i-book"/></svg><span>Resources</span></a>
-          <a class="nav-link" href="#directory" data-section-link="directory"><svg class="icon"><use href="#i-users"/></svg><span>Directory</span></a>
+          <a class="nav-link" href="#directory" data-section-link="directory"><svg class="icon"><use href="#i-users"/></svg><span>Roles &amp; Members</span></a>
+          <a class="nav-link" href="#support" data-section-link="support"><svg class="icon"><use href="#i-headset"/></svg><span>Technical support</span><span class="nav-count" id="support-nav-count" hidden>0</span></a>
+          <a class="nav-link staff-nav-link" href="#control" data-section-link="control" hidden><svg class="icon"><use href="#i-shield"/></svg><span>Staff console</span></a>
         </nav>
         <div class="sidebar-bottom">
-          <div class="semester-card"><div class="semester-heading"><span class="semester-live"></span> CURRENT SEMESTER</div><strong>Fall Semester <span>’25</span></strong><p>BSSE · Section A</p><div class="semester-progress"><span></span></div><div class="semester-foot"><span>Week 9 of 16</span><span>56%</span></div></div>
-          <div class="sidebar-profile"><span class="avatar avatar-You">Y</span><span class="profile-copy"><strong id="sidebar-user-name">You</strong><span id="sidebar-user-role">BSSE Student</span></span><button class="icon-button theme-toggle" type="button" aria-label="Switch to dark mode" title="Toggle appearance"><svg class="icon"><use href="#i-moon"/></svg></button></div>
+          <div class="sidebar-profile"><span class="avatar avatar-You" id="sidebar-user-avatar" aria-hidden="true">Y</span><span class="profile-copy"><strong id="sidebar-user-name">You</strong><span id="sidebar-user-role">BSSE Student</span></span><button class="icon-button theme-toggle" type="button" aria-label="Switch to dark mode" title="Toggle appearance"><svg class="icon"><use href="#i-moon"/></svg></button></div>
         </div>
       </aside>
 
@@ -74,7 +85,9 @@
           <div class="breadcrumb"><button class="icon-button menu-toggle" id="menu-toggle" type="button" aria-label="Open navigation"><svg class="icon"><use href="#i-menu"/></svg></button><span>FUSST</span><svg class="breadcrumb-chevron"><use href="#i-chevron"/></svg><strong id="breadcrumb-current">Dashboard</strong></div>
           <div class="topbar-actions">
             <span class="today-label"><svg class="icon"><use href="#i-calendar"/></svg><span id="today-label"></span></span>
+            <span class="maintenance-indicator" id="maintenance-indicator" hidden><i></i> MAINTENANCE ON</span>
             <button class="icon-button theme-toggle topbar-theme" type="button" aria-label="Switch to dark mode" title="Toggle appearance"><svg class="icon"><use href="#i-moon"/></svg></button>
+            <button class="icon-button inbox-shortcut" id="inbox-shortcut" type="button" aria-label="Open your inbox"><svg class="icon"><use href="#i-bell"/></svg><span class="notification-badge" id="topbar-notification-count" hidden>0</span></button>
             <label class="search-box"><svg class="icon"><use href="#i-search"/></svg><input id="global-search" type="search" placeholder="Search anything..." aria-label="Search portal content"><span class="search-shortcut">⌘ K</span></label>
             <button class="login-button" id="auth-button" type="button">Sign in <svg class="icon"><use href="#i-arrow"/></svg></button>
           </div>
@@ -84,33 +97,33 @@
           <section class="page-section is-visible" id="section-dashboard" data-section="dashboard" aria-labelledby="welcome-title">
             <div class="welcome-banner">
               <div class="welcome-content">
-                <div class="eyebrow"><span class="welcome-status-dot"></span> YOUR CAMPUS, IN SYNC <span class="eyebrow-sparkle">✳</span></div>
+                <div class="eyebrow"><span class="welcome-status-dot"></span> YOUR CLASS, IN SYNC <span class="eyebrow-sparkle">✳</span></div>
                 <h1 id="welcome-title">A good day to build<br>something <span>great.</span></h1>
-                <p>Your semester, one step ahead. Here’s what’s happening with your batch.</p>
+                <p>Your class, one step ahead. Here’s what’s happening with your classmates.</p>
                 <button class="banner-button" type="button" data-go="timetable">See today’s classes <svg class="icon"><use href="#i-arrow"/></svg></button>
               </div>
               <div class="welcome-art" aria-hidden="true">
                 <div class="orbit orbit-one"></div><div class="orbit orbit-two"></div>
                 <div class="art-glow"></div>
-                <div class="art-window"><div class="window-toolbar"><span></span><span></span><span></span><small>your-next-big-thing.js</small></div><div class="window-code"><span class="code-line"><i>01</i><b>const</b> <em>yourSemester</em> = {</span><span class="code-line"><i>02</i> &nbsp; focus: <strong>"keep going"</strong>,</span><span class="code-line"><i>03</i> &nbsp; coffee: <strong>∞</strong>,</span><span class="code-line"><i>04</i> &nbsp; future: <mark>"looking bright"</mark></span><span class="code-line"><i>05</i> };</span><span class="code-cursor"></span></div></div>
+                <div class="art-window">                <div class="window-toolbar"><span></span><span></span><span></span><small>your-next-big-thing.js</small></div><div class="window-code"><span class="code-line"><i>01</i><b>const</b> <em>yourClass</em> = {</span><span class="code-line"><i>02</i> &nbsp; focus: <strong>"keep going"</strong>,</span><span class="code-line"><i>03</i> &nbsp; coffee: <strong>∞</strong>,</span><span class="code-line"><i>04</i> &nbsp; future: <mark>"looking bright"</mark></span><span class="code-line"><i>05</i> };</span><span class="code-cursor"></span></div></div>
                 <div class="art-badge"><span>✳</span> YOU’VE GOT THIS.</div>
                 <div class="art-sticker">FUTURE<br>ENGINEER<span>↗</span></div>
               </div>
               <div class="banner-orb"></div>
             </div>
 
-            <div class="role-strip"><div class="role-strip-copy"><span class="role-shield"><svg class="icon"><use href="#i-sparkle"/></svg></span><span><strong>Explore as</strong><small id="role-mode-caption">See the portal your way</small></span></div><label class="role-picker-label" for="role-switcher"><span class="role-picker-icon">◈</span><select id="role-switcher" aria-label="Preview portal as a role"><option value="student">Student</option><option value="cr">Class representative</option><option value="teacher">Teacher</option></select><svg class="role-chevron"><use href="#i-chevron"/></svg></label><span class="role-hint" id="role-hint">Preview only · publishing requires an authorized account</span></div>
+            <div class="role-strip"><div class="role-strip-copy"><span class="role-shield"><svg class="icon"><use href="#i-sparkle"/></svg></span><span><strong>Explore as</strong><small id="role-mode-caption">See the portal your way</small></span></div><label class="role-picker-label" for="role-switcher"><span class="role-picker-icon">◈</span><select id="role-switcher" aria-label="Preview portal as a role"><option value="owner">Owner</option><option value="technical_team">Technical team</option><option value="teacher">Teacher</option><option value="cr">Class representative</option><option value="student">Student</option></select><svg class="role-chevron"><use href="#i-chevron"/></svg></label><span class="role-hint" id="role-hint">Preview only · publishing requires an authorized account</span></div>
 
             <div class="stats-grid">
               <article class="stat-card"><div class="stat-top"><span class="stat-icon stat-violet"><svg class="icon"><use href="#i-megaphone"/></svg></span><span class="stat-trend">THIS WEEK</span></div><div class="stat-number" id="stat-notices">—</div><div class="stat-label">New announcements</div><div class="stat-detail">Stay in the loop <span>↗</span></div></article>
               <article class="stat-card"><div class="stat-top"><span class="stat-icon stat-coral"><svg class="icon"><use href="#i-clipboard"/></svg></span><span class="stat-trend trend-coral">UP NEXT</span></div><div class="stat-number" id="stat-assignments">—</div><div class="stat-label">Upcoming assignments</div><div class="stat-detail">You’re right on track <span>↗</span></div></article>
-              <article class="stat-card"><div class="stat-top"><span class="stat-icon stat-teal"><svg class="icon"><use href="#i-calendar"/></svg></span><span class="stat-trend trend-teal">ON CAMPUS</span></div><div class="stat-number" id="stat-classes">—</div><div class="stat-label">Classes today</div><div class="stat-detail">One class at a time <span>↗</span></div></article>
+              <article class="stat-card"><div class="stat-top"><span class="stat-icon stat-teal"><svg class="icon"><use href="#i-calendar"/></svg></span><span class="stat-trend trend-teal">YOUR CLASS</span></div><div class="stat-number" id="stat-classes">—</div><div class="stat-label">Classes today</div><div class="stat-detail">One class at a time <span>↗</span></div></article>
               <article class="stat-card stat-quote-card"><span class="quote-stars">✳ ✳ ✳</span><p>Small steps make<br><span>big things happen.</span></p><span class="quote-attribution">A LITTLE REMINDER FOR TODAY</span></article>
             </div>
 
             <div class="dashboard-grid">
               <section class="panel schedule-panel"><div class="panel-header"><div><div class="section-kicker"><span></span> ON YOUR CALENDAR</div><h2>Today’s schedule</h2></div><button class="text-link" type="button" data-go="timetable">Full timetable <svg class="icon"><use href="#i-arrow"/></svg></button></div><div class="schedule-list" id="dashboard-schedule"></div></section>
-              <section class="panel notice-panel"><div class="panel-header"><div><div class="section-kicker"><span class="kicker-yellow"></span> STRAIGHT FROM YOUR BATCH</div><h2>Latest notices</h2></div><button class="text-link" type="button" data-go="notices">All notices <svg class="icon"><use href="#i-arrow"/></svg></button></div><div class="latest-notices" id="dashboard-notices"></div></section>
+              <section class="panel notice-panel"><div class="panel-header"><div><div class="section-kicker"><span class="kicker-yellow"></span> STRAIGHT FROM YOUR CLASS</div><h2>Latest notices</h2></div><button class="text-link" type="button" data-go="notices">All notices <svg class="icon"><use href="#i-arrow"/></svg></button></div><div class="latest-notices" id="dashboard-notices"></div></section>
             </div>
             <footer class="page-footer"><span>Made for your next chapter. <span class="footer-heart">♥</span></span><span>FUSST HUB <span class="footer-separator">·</span> BSSE PORTAL</span></footer>
           </section>
@@ -121,9 +134,15 @@
             <div class="notices-grid" id="notices-list"></div>
           </section>
 
+          <section class="page-section" id="section-inbox" data-section="inbox" aria-labelledby="inbox-title" hidden>
+            <div class="subpage-heading"><div><div class="section-kicker"><span class="kicker-yellow"></span> THE IMPORTANT THINGS, RIGHT HERE</div><h1 id="inbox-title">Your inbox<span class="heading-period">.</span></h1><p>New announcements land here automatically. No emails, no missed updates.</p></div><button class="secondary-button" id="refresh-inbox" type="button"><svg class="icon"><use href="#i-refresh"/></svg> Refresh inbox</button></div>
+            <div class="inbox-summary" id="inbox-summary"></div>
+            <div class="notification-list" id="notification-list" aria-live="polite"></div>
+          </section>
+
           <section class="page-section" id="section-timetable" data-section="timetable" aria-labelledby="timetable-title" hidden>
-            <div class="subpage-heading"><div><div class="section-kicker"><span></span> YOUR WEEK, AT A GLANCE</div><h1 id="timetable-title">Timetable<span class="heading-period">.</span></h1><p>Know where to be. Keep your week running smoothly.</p></div><button class="primary-button post-button" type="button" data-create="timetable"><svg class="icon"><use href="#i-plus"/></svg> Add a class</button></div>
-            <div class="timetable-toolbar"><div class="timetable-week"><svg class="icon"><use href="#i-calendar"/></svg><span id="timetable-week-label"></span></div><span class="timetable-timezone">FAISALABAD TIME (PKT)</span></div>
+            <div class="subpage-heading"><div><div class="section-kicker"><span></span> YOUR WEEK, AT A GLANCE</div><h1 id="timetable-title">Timetable<span class="heading-period">.</span></h1><p>Versioned schedules by semester and section, with bulk weekly publishing.</p></div><button class="primary-button post-button" type="button" data-create="timetable"><svg class="icon"><use href="#i-calendar"/></svg> Bulk edit schedule</button></div>
+            <div class="timetable-toolbar"><label class="schedule-filter">View date<input id="timetable-date" type="date"></label><label class="schedule-filter">Semester<select id="timetable-semester" aria-label="Timetable semester"><option value="1">Semester 1</option><option value="2">Semester 2</option><option value="3">Semester 3</option><option value="4">Semester 4</option><option value="5">Semester 5</option><option value="6">Semester 6</option><option value="7">Semester 7</option><option value="8">Semester 8</option></select></label><label class="schedule-filter">Section<input id="timetable-section" maxlength="12" aria-label="Timetable section"></label><span class="timetable-timezone">Islamabad</span><span id="timetable-effective-dates" class="timetable-effective-dates" aria-live="polite"></span></div>
             <div class="timetable-grid" id="timetable-list"></div>
           </section>
 
@@ -140,14 +159,50 @@
           </section>
 
           <section class="page-section" id="section-directory" data-section="directory" aria-labelledby="directory-title" hidden>
-            <div class="subpage-heading"><div><div class="section-kicker"><span></span> BETTER TOGETHER</div><h1 id="directory-title">Your people<span class="heading-period">.</span></h1><p>Find your classmates, CRs, and the people cheering you on.</p></div></div>
-            <div class="directory-toolbar"><label class="filter-search"><svg class="icon"><use href="#i-search"/></svg><input id="directory-filter" type="search" placeholder="Find a classmate..." aria-label="Search classmates"></label><span class="directory-count" id="directory-count"></span></div>
-            <div class="directory-grid" id="directory-list"></div>
+            <div class="subpage-heading"><div><div class="section-kicker"><span></span> YOUR CLASS COMMUNITY</div><h1 id="directory-title">Roles &amp; Members<span class="heading-period">.</span></h1><p>Meet your classmates, class representatives, teachers, and portal team.</p></div><button class="secondary-button" type="button" data-open-profile-editor>Edit my profile</button></div>
+            <div class="directory-toolbar"><label class="filter-search"><svg class="icon"><use href="#i-search"/></svg><input id="directory-filter" type="search" placeholder="Search classmates, roles, or interests..." aria-label="Search classmates"></label><label class="schedule-filter"><span class="visually-hidden">Filter by role</span><select id="directory-role-filter" aria-label="Filter members by role"><option value="all">All roles</option><option value="owner">Portal Owners</option><option value="technical_team">Technical Team</option><option value="teacher">Teachers</option><option value="cr">Class Representatives</option><option value="student">Students</option></select></label><span class="directory-count" id="directory-count"></span></div>
+            <div id="directory-list"></div>
+          </section>
+
+          <section class="page-section" id="section-support" data-section="support" aria-labelledby="support-title" hidden>
+            <div class="subpage-heading"><div><div class="section-kicker"><span class="kicker-teal"></span> REAL PEOPLE, REAL HELP</div><h1 id="support-title">Technical support<span class="heading-period">.</span></h1><p>Something broken or confusing? Start a private conversation with the tech team.</p></div><button class="primary-button" id="new-support-thread" type="button"><svg class="icon"><use href="#i-plus"/></svg> Report an issue</button></div>
+            <div class="support-retention-banner"><span class="support-retention-icon"><svg class="icon"><use href="#i-lock"/></svg></span><span><strong>Private by design.</strong><small>Only you and the technical team can see your conversations. Messages automatically disappear after 7 days.</small></span></div>
+            <div class="support-workspace" id="support-workspace">
+              <div class="support-thread-panel"><div class="support-panel-heading"><div><span class="section-kicker"><span></span> YOUR CONVERSATIONS</span><h2 id="support-list-heading">Your messages</h2></div><span class="support-thread-count" id="support-thread-count">0</span></div><div class="support-thread-list" id="support-thread-list"></div></div>
+              <div class="support-chat-panel" id="support-chat-panel"><div class="support-chat-empty"><span class="empty-illustration">💬</span><strong>How can we help?</strong><p>Choose a conversation, or tell our technical team what’s going on.</p><button class="primary-button" type="button" data-support-new><svg class="icon"><use href="#i-plus"/></svg> Start a conversation</button></div></div>
+            </div>
+          </section>
+
+          <section class="page-section" id="section-control" data-section="control" aria-labelledby="control-title" hidden>
+            <div class="subpage-heading"><div><div class="section-kicker"><span class="kicker-coral"></span> THE PEOPLE BEHIND THE PORTAL</div><h1 id="control-title">Staff console<span class="heading-period">.</span></h1><p id="control-description">Keep the portal welcoming, helpful, and running smoothly.</p></div><button class="secondary-button" id="refresh-control" type="button"><svg class="icon"><use href="#i-refresh"/></svg> Refresh</button></div>
+            <div class="staff-welcome" id="staff-welcome"></div>
+            <div class="staff-tabs" id="staff-tabs" role="tablist" aria-label="Staff console sections">
+              <button class="staff-tab is-selected" type="button" role="tab" data-staff-tab="overview" aria-selected="true"><svg class="icon"><use href="#i-grid"/></svg> Overview</button>
+              <button class="staff-tab staff-owner-only" type="button" role="tab" data-staff-tab="people" aria-selected="false"><svg class="icon"><use href="#i-users-round"/></svg> People & roles</button>
+              <button class="staff-tab" type="button" role="tab" data-staff-tab="support" aria-selected="false"><svg class="icon"><use href="#i-headset"/></svg> Support queue</button>
+              <button class="staff-tab staff-owner-only" type="button" role="tab" data-staff-tab="notices" aria-selected="false"><svg class="icon"><use href="#i-send"/></svg> Owner notices</button>
+              <button class="staff-tab staff-owner-only" type="button" role="tab" data-staff-tab="maintenance" aria-selected="false"><svg class="icon"><use href="#i-settings"/></svg> Site controls</button>
+            </div>
+            <div class="staff-panel" id="staff-panel" role="tabpanel"></div>
           </section>
           <div class="global-toast" id="global-toast" role="status" aria-live="polite"></div>
         </div>
       </main>
     </div>
+
+    <main class="maintenance-screen" id="maintenance-screen" hidden>
+      <div class="maintenance-decoration maintenance-decoration-one"></div>
+      <div class="maintenance-decoration maintenance-decoration-two"></div>
+      <a class="maintenance-brand" href="/" aria-label="FUSST Hub"><span class="brand-mark"><span class="brand-mark-inner">F.</span><span class="brand-spark"></span></span><span class="brand-copy">fusst<span>hub</span><small>STUDENT PORTAL</small></span></a>
+      <div class="maintenance-art" aria-hidden="true"><span class="maintenance-orbit"></span><span class="maintenance-orbit maintenance-orbit-inner"></span><span class="maintenance-emoji">🛠️</span><span class="maintenance-orbit-dot"></span></div>
+      <span class="maintenance-eyebrow"><i></i> MAKING THINGS A LITTLE BETTER</span>
+      <h1>We’ll be right<br><span>back.</span></h1>
+      <p class="maintenance-message" id="maintenance-message">We’ll be right back. The portal is undergoing scheduled maintenance.</p>
+      <p class="maintenance-caption">The FUSST Hub team is working on it. Your community will be here when we’re done.</p>
+      <button class="primary-button maintenance-signin" id="maintenance-signin" type="button"><svg class="icon"><use href="#i-lock"/></svg> Owner sign in</button>
+      <p class="maintenance-owner-hint" id="maintenance-owner-hint">Portal owner? Sign in to access the staff console while the site is paused.</p>
+      <span class="maintenance-footer">FUSST HUB <i>·</i> BACK BEFORE YOU KNOW IT</span>
+    </main>
 
     <dialog class="app-dialog" id="app-dialog" aria-labelledby="dialog-title">
       <form class="dialog-form" id="dialog-form">
