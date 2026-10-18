@@ -24,7 +24,7 @@ import {
   updateSupportThreadStatus,
   updateMyProfile,
   uploadProfilePhoto,
-} from "./supabase.js";
+} from "./supabase.js?v=20261018-2";
 
 const icon = (name, className = "icon") =>
   `<svg class="${className}" aria-hidden="true"><use href="#i-${name}"></use></svg>`;
