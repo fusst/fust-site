@@ -7771,3 +7771,304 @@ html[data-theme="dark"] .support-action-button.is-current {
     margin-left: auto;
   }
 }
+
+.app-dialog[data-dialog-mode="auth"] {
+  width: min(840px, calc(100vw - 2rem));
+  max-width: 840px;
+  border-radius: 26px;
+  overflow: auto;
+}
+
+.app-dialog[data-dialog-mode="auth"] .dialog-form {
+  gap: 10px;
+  padding: clamp(18px, 3.5vw, 32px);
+}
+
+.app-dialog[data-dialog-mode="auth"] .dialog-heading {
+  margin-bottom: 2px;
+}
+
+.app-dialog[data-dialog-mode="auth"] .dialog-icon {
+  width: 40px;
+  height: 40px;
+  border: 1px solid color-mix(in srgb, var(--primary) 20%, var(--border));
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--primary-soft) 72%, var(--panel));
+}
+
+.app-dialog[data-dialog-mode="auth"] .dialog-eyebrow {
+  color: var(--primary-strong);
+  font-size: 0.62rem;
+  letter-spacing: 0.15em;
+}
+
+.app-dialog[data-dialog-mode="auth"] .dialog-form h2 {
+  font-size: clamp(1.65rem, 4vw, 2.2rem);
+  letter-spacing: -0.06em;
+}
+
+.app-dialog[data-dialog-mode="auth"] .dialog-description {
+  max-width: 580px;
+  font-size: 0.83rem;
+}
+
+.auth-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.88fr) minmax(0, 1fr);
+  gap: clamp(16px, 3vw, 28px);
+  margin-top: 7px;
+}
+
+.auth-aside {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-height: 300px;
+  padding: clamp(18px, 2.7vw, 26px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 20px;
+  background:
+    radial-gradient(ellipse at 100% 0%, rgba(115, 135, 255, 0.32), transparent 52%),
+    radial-gradient(ellipse at 0% 100%, rgba(20, 184, 166, 0.18), transparent 48%),
+    linear-gradient(145deg, #172541 0%, #101a30 100%);
+  color: #f7f8ff;
+}
+
+.auth-brand-mark {
+  display: grid;
+  width: 43px;
+  height: 43px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  border-radius: 14px;
+  background: linear-gradient(145deg, #8b9cff, #5574ff 62%, #19bea4 140%);
+  box-shadow: 0 8px 24px rgba(82, 108, 255, 0.3);
+  color: white;
+  font-size: 1.25rem;
+  font-weight: 900;
+}
+
+.auth-aside-eyebrow {
+  margin-top: 24px;
+  color: #aebbf5;
+  font-size: 0.58rem;
+  font-weight: 850;
+  letter-spacing: 0.14em;
+}
+
+.auth-aside h3 {
+  margin: 10px 0 7px;
+  font-size: clamp(1.24rem, 2.3vw, 1.65rem);
+  letter-spacing: -0.055em;
+  line-height: 1.12;
+}
+
+.auth-aside > p {
+  max-width: 280px;
+  margin: 0;
+  color: rgba(239, 243, 255, 0.73);
+  font-size: 0.75rem;
+  line-height: 1.55;
+}
+
+.auth-benefit-list {
+  display: grid;
+  gap: 9px;
+  margin-top: 20px;
+}
+
+.auth-benefit-list > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(247, 248, 255, 0.9);
+  font-size: 0.68rem;
+  font-weight: 650;
+}
+
+.auth-benefit-list .icon {
+  width: 14px;
+  height: 14px;
+  color: #62d6b7;
+}
+
+.auth-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 16px;
+  min-width: 0;
+  padding: 4px 0;
+}
+
+.auth-switcher {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: var(--surface);
+}
+
+.auth-switcher-button {
+  min-height: 39px;
+  padding: 8px 11px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 750;
+  transition: background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.auth-switcher-button.is-active {
+  border-color: var(--border);
+  background: var(--panel);
+  box-shadow: 0 2px 7px rgba(26, 39, 68, 0.08);
+  color: var(--primary-strong);
+}
+
+.auth-content .form-field {
+  gap: 7px;
+  font-size: 0.75rem;
+  font-weight: 750;
+}
+
+.auth-label-title {
+  display: block;
+}
+
+.auth-content .form-field input {
+  min-height: 47px;
+  padding: 0 13px;
+  border-color: color-mix(in srgb, var(--border) 82%, var(--muted));
+  border-radius: 12px;
+  background: var(--surface);
+  font-size: 0.84rem;
+}
+
+.auth-content .form-field input::placeholder {
+  color: color-mix(in srgb, var(--muted) 72%, transparent);
+}
+
+.auth-password-wrap {
+  position: relative;
+  display: block;
+}
+
+.auth-password-wrap input {
+  padding-right: 68px !important;
+}
+
+.auth-password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 11px;
+  padding: 6px;
+  transform: translateY(-50%);
+  background: transparent;
+  color: var(--primary-strong);
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.auth-form-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--teal) 22%, var(--border));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--teal-soft) 42%, var(--panel));
+  color: var(--muted);
+  font-size: 0.68rem;
+  line-height: 1.5;
+}
+
+.auth-form-note .icon {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  color: var(--teal);
+}
+
+.app-dialog[data-dialog-mode="auth"] .dialog-actions {
+  justify-content: stretch;
+  margin-top: 4px;
+}
+
+.app-dialog[data-dialog-mode="auth"] .dialog-actions > .secondary-button {
+  display: none;
+}
+
+.app-dialog[data-dialog-mode="auth"] .dialog-actions > .primary-button {
+  width: 100%;
+  min-height: 48px;
+  justify-content: center;
+  border-radius: 13px;
+  font-size: 0.84rem;
+}
+
+.app-dialog[data-dialog-mode="auth"] .dialog-footnote {
+  max-width: 580px;
+  font-size: 0.68rem;
+  line-height: 1.5;
+}
+
+.signup-confirmation .secondary-button {
+  min-height: 40px;
+  margin-top: 9px;
+}
+
+html[data-theme="dark"] .auth-switcher {
+  background: var(--surface);
+}
+
+html[data-theme="dark"] .auth-switcher-button.is-active {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+}
+
+html[data-theme="dark"] .auth-content .form-field input {
+  background: color-mix(in srgb, var(--surface) 75%, var(--panel));
+}
+
+@media (max-width: 620px) {
+  .app-dialog[data-dialog-mode="auth"] {
+    width: min(480px, calc(100vw - 1rem));
+    max-height: min(92dvh, 820px);
+    border-radius: 20px;
+  }
+
+  .app-dialog[data-dialog-mode="auth"] .dialog-form {
+    max-height: min(92dvh, 820px);
+    overflow-y: auto;
+    padding: 16px;
+  }
+
+  .app-dialog[data-dialog-mode="auth"] .dialog-form h2 {
+    font-size: 1.4rem;
+    line-height: 1.2;
+  }
+
+  .auth-layout {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .auth-aside {
+    display: none;
+  }
+
+  .auth-content {
+    gap: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-switcher-button {
+    transition: none;
+  }
+}

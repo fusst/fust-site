@@ -25,7 +25,7 @@ import {
   updateSupportThreadStatus,
   updateMyProfile,
   uploadProfilePhoto,
-} from "./supabase.js?v=20261018-9";
+} from "./supabase.js?v=20261018-10";
 
 const icon = (name, className = "icon") =>
   `<svg class="${className}" aria-hidden="true"><use href="#i-${name}"></use></svg>`;
@@ -598,6 +598,9 @@ function updateRoleControls() {
 function openDialog(content, mode) {
   state.dialogMode = mode;
   state.dialogBusy = false;
+  const dialog = $("#app-dialog");
+  const isAuthDialog = mode.startsWith("auth:");
+  dialog.dataset.dialogMode = isAuthDialog ? "auth" : "standard";
   $("#dialog-fields").innerHTML = content.fields;
   $("#dialog-icon").innerHTML = icon(content.icon);
   $("#dialog-eyebrow").textContent = content.eyebrow;
@@ -608,7 +611,7 @@ function openDialog(content, mode) {
   $("#dialog-error").hidden = true;
   $("#dialog-submit").disabled = false;
   $("#dialog-submit").hidden = false;
-  const dialog = $("#app-dialog");
+  $("#dialog-cancel").hidden = isAuthDialog;
   if (!dialog.open) dialog.showModal();
   $("#dialog-fields").querySelector("input:not([type=hidden]), textarea, select")?.focus();
 }
@@ -688,18 +691,28 @@ function openSupportDialog() {
 
 function openAuthDialog(mode = "signin") {
   const registering = mode === "signup";
+  const nameField = registering
+    ? `<label class="form-field"><span class="auth-label-title">Your name <span class="required-marker" aria-hidden="true">*</span></span><input name="full_name" required maxlength="100" placeholder="First and last name" autocomplete="name"></label>`
+    : "";
+  const emailField = `<label class="form-field"><span class="auth-label-title">Email address <span class="required-marker" aria-hidden="true">*</span></span><input name="email" type="email" required autocomplete="email" placeholder="you@example.com"></label>`;
+  const passwordField = `<label class="form-field"><span class="auth-label-title">Password <span class="required-marker" aria-hidden="true">*</span></span><span class="auth-password-wrap"><input id="auth-password" name="password" type="password" required minlength="6" autocomplete="${registering ? "new-password" : "current-password"}" placeholder="${registering ? "At least 6 characters" : "Enter your password"}"><button class="auth-password-toggle" type="button" data-toggle-password aria-label="Show password" aria-pressed="false">Show</button></span></label>`;
+  const authTabs = `<div class="auth-switcher" role="group" aria-label="Choose sign-in or account creation"><button class="auth-switcher-button${registering ? "" : " is-active"}" id="auth-switch-signin" type="button" aria-pressed="${!registering}">Sign in</button><button class="auth-switcher-button${registering ? " is-active" : ""}" id="auth-switch-signup" type="button" aria-pressed="${registering}">Create account</button></div>`;
+  const authAside = `<aside class="auth-aside"><span class="auth-brand-mark">F.</span><span class="auth-aside-eyebrow">MADE FOR OUR BSSE CLASS</span><h3>${registering ? "Your class, closer." : "Everything for class, together."}</h3><p>${registering ? "Create your student account to stay connected with the class community." : "Notices, assignments, the latest timetable, and a direct line to technical support."}</p><div class="auth-benefit-list"><span>${icon("check")} Class updates in one place</span><span>${icon("check")} Private, secure sign-in</span></div></aside>`;
+  const roleNote = registering
+    ? `<p class="auth-form-note">${icon("lock")} Your role is assigned by the portal owner after you create your account.</p>`
+    : "";
   openDialog({
-    icon: "users",
-    eyebrow: "WELCOME TO YOUR COMMUNITY",
-    title: registering ? "Your next chapter starts here." : "Good to have you back.",
+    icon: "shield",
+    eyebrow: registering ? "JOIN YOUR CLASS COMMUNITY" : "FUSST HUB · BSSE CLASS PORTAL",
+    title: registering ? "Create your account." : "Welcome back.",
     description: registering
-      ? "Create an account with your email. New accounts start with student access."
-      : "Sign in to access your class community and the latest updates.",
-    submitLabel: registering ? "Create my account" : "Sign in",
+      ? "One account for class notices, assignments, support, and more."
+      : "Sign in to see what’s happening with your class.",
+    submitLabel: registering ? "Create account" : "Sign in",
     footnote: registering
-      ? "Your role is assigned by your portal administrator — it cannot be chosen at sign-up."
-      : "New to the portal? Create an account below.",
-    fields: `${registering ? `<label class="form-field">Your name <span class="required-marker" aria-hidden="true">*</span><input name="full_name" required maxlength="120" placeholder="First and last name" autocomplete="name"></label>` : ""}<label class="form-field">Email address <span class="required-marker" aria-hidden="true">*</span><input name="email" type="email" required autocomplete="email" placeholder="you@example.com"></label><label class="form-field">Password <span class="required-marker" aria-hidden="true">*</span><input name="password" type="password" required minlength="6" autocomplete="${registering ? "new-password" : "current-password"}" placeholder="${registering ? "At least 6 characters" : "Your password"}"></label>${!registering ? `<button class="dialog-mode-link" id="auth-switch-signup" type="button">New to FUSST Hub? <strong>Create an account</strong></button>` : `<button class="dialog-mode-link" id="auth-switch-signin" type="button">Already have an account? <strong>Sign in instead</strong></button>`}`,
+      ? "New accounts start as students. A portal owner assigns any additional roles."
+      : "Use the email address you registered with. Your account roles are managed by the portal owner.",
+    fields: `<div class="auth-layout">${authAside}<div class="auth-content">${authTabs}${nameField}${emailField}${passwordField}${roleNote}</div></div>`,
   }, registering ? "auth:signup" : "auth:signin");
   $("#auth-switch-signup")?.addEventListener("click", () => openAuthDialog("signup"));
   $("#auth-switch-signin")?.addEventListener("click", () => openAuthDialog("signin"));
@@ -750,6 +763,9 @@ async function handleDialogSubmit(event) {
   state.dialogBusy = true;
   const submit = $("#dialog-submit");
   submit.disabled = true;
+  submit.setAttribute("aria-busy", "true");
+  if (state.dialogMode === "auth:signin") submit.querySelector("span").textContent = "Signing in…";
+  if (state.dialogMode === "auth:signup") submit.querySelector("span").textContent = "Creating account…";
 
   try {
     if (state.dialogMode === "auth:signin") {
@@ -767,8 +783,9 @@ async function handleDialogSubmit(event) {
       );
       if (!user) throw new Error("The account could not be created. Please try again.");
       if (!session) {
-        $("#dialog-fields").innerHTML = `<div class="signup-confirmation"><span>✉️</span><strong>Check your inbox.</strong><p>We’ve sent an email to <strong>${escapeHtml(user.email)}</strong>. Confirm your address to finish creating your account.</p></div>`;
+        $("#dialog-fields").innerHTML = `<div class="signup-confirmation"><span>✉️</span><strong>Check your inbox.</strong><p>We’ve sent an email to <strong>${escapeHtml(user.email)}</strong>. Confirm your address to finish creating your account.</p><button class="secondary-button" id="auth-confirmation-signin" type="button">Back to sign in</button></div>`;
         $("#dialog-submit").hidden = true;
+        $("#dialog-cancel").hidden = true;
         $("#dialog-footnote").textContent = "Once your email is confirmed, you can sign in here.";
       } else {
         state.user = user;
@@ -848,7 +865,13 @@ async function handleDialogSubmit(event) {
     showDialogError(error.message || "Something went wrong. Please try again.");
   } finally {
     state.dialogBusy = false;
-    if ($("#dialog-submit").isConnected) $("#dialog-submit").disabled = false;
+    if ($("#dialog-submit").isConnected) {
+      submit.removeAttribute("aria-busy");
+      submit.querySelector("span").textContent = state.dialogMode === "auth:signup"
+        ? "Create account"
+        : state.dialogMode === "auth:signin" ? "Sign in" : submit.querySelector("span").textContent;
+      if (!submit.hidden) submit.disabled = false;
+    }
   }
 }
 
@@ -1250,6 +1273,21 @@ function initializeEvents() {
     }
   });
   document.addEventListener("click", async (event) => {
+    if (event.target.closest("[data-toggle-password]")) {
+      const button = event.target.closest("[data-toggle-password]");
+      const input = $("#auth-password");
+      if (!input) return;
+      const showPassword = input.type === "password";
+      input.type = showPassword ? "text" : "password";
+      button.textContent = showPassword ? "Hide" : "Show";
+      button.setAttribute("aria-label", `${showPassword ? "Hide" : "Show"} password`);
+      button.setAttribute("aria-pressed", String(showPassword));
+      return;
+    }
+    if (event.target.closest("#auth-confirmation-signin")) {
+      openAuthDialog("signin");
+      return;
+    }
     if (event.target.closest("#maintenance-signin")) {
       openAuthDialog();
       return;
