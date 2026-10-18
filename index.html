@@ -16,8 +16,8 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="styles.css" />
-    <script src="js/config.js?v=20261018-2"></script>
-    <script type="module" src="js/app.js?v=20261018-2"></script>
+    <script src="js/config.js?v=20261018-3"></script>
+    <script type="module" src="js/app.js?v=20261018-3"></script>
   </head>
   <body>
     <svg class="icon-definitions" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
@@ -111,6 +111,13 @@
               </div>
               <div class="banner-orb"></div>
             </div>
+
+            <aside class="mobile-app-notice" id="mobile-app-notice" role="status" aria-label="FUSST Hub Android app">
+              <span class="mobile-app-icon"><svg class="icon" aria-hidden="true"><use href="#i-download"/></svg></span>
+              <div class="mobile-app-copy"><strong>Take your class with you.</strong><p>Download the FUSST Hub Android app for quick access to your class updates.</p></div>
+              <a class="mobile-app-download" href="downloads/fusst-hub.apk" download="fusst-hub.apk"><svg class="icon" aria-hidden="true"><use href="#i-download"/></svg><span>Download app<small>Android APK · 9.7 MB</small></span></a>
+              <button class="icon-button mobile-app-dismiss" id="dismiss-mobile-app-notice" type="button" aria-label="Dismiss Android app download notice"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button>
+            </aside>
 
             <div class="role-strip"><div class="role-strip-copy"><span class="role-shield"><svg class="icon"><use href="#i-sparkle"/></svg></span><span><strong>Explore as</strong><small id="role-mode-caption">See the portal your way</small></span></div><label class="role-picker-label" for="role-switcher"><span class="role-picker-icon">◈</span><select id="role-switcher" aria-label="Preview portal as a role"><option value="owner">Owner</option><option value="technical_team">Technical team</option><option value="teacher">Teacher</option><option value="cr">Class representative</option><option value="student">Student</option></select><svg class="role-chevron"><use href="#i-chevron"/></svg></label><span class="role-hint" id="role-hint">Preview only · publishing requires an authorized account</span></div>
 

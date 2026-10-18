@@ -6262,3 +6262,124 @@ html[data-theme="dark"] .stat-quote-card {
     height: 56px;
   }
 }
+
+.mobile-app-notice {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .mobile-app-notice:not([hidden]) {
+    position: relative;
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr) 34px;
+    align-items: center;
+    gap: 10px 12px;
+    padding: 15px;
+    border: 1px solid color-mix(in srgb, var(--primary) 18%, var(--border));
+    border-radius: 15px;
+    background: linear-gradient(115deg, var(--primary-soft), var(--panel) 72%);
+    box-shadow: var(--shadow-soft);
+  }
+
+  .mobile-app-icon {
+    display: grid;
+    width: 42px;
+    height: 42px;
+    place-items: center;
+    border-radius: 13px;
+    background: var(--panel);
+    color: var(--primary-strong);
+    box-shadow: var(--shadow-soft);
+  }
+
+  .mobile-app-icon .icon {
+    width: 19px;
+    height: 19px;
+  }
+
+  .mobile-app-copy {
+    min-width: 0;
+    padding-right: 28px;
+  }
+
+  .mobile-app-copy strong {
+    color: var(--text-strong);
+    font-size: 0.87rem;
+    font-weight: 750;
+  }
+
+  .mobile-app-copy p {
+    margin-top: 3px;
+    color: var(--muted);
+    font-size: 0.73rem;
+    line-height: 1.5;
+  }
+
+  .mobile-app-download {
+    display: flex;
+    grid-column: 1 / -1;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    min-height: 46px;
+    padding: 8px 13px;
+    border: 1px solid color-mix(in srgb, var(--primary) 24%, var(--border));
+    border-radius: 11px;
+    background: var(--panel);
+    color: var(--primary-strong);
+    text-decoration: none;
+    transition: border-color 0.18s ease, transform 0.18s ease;
+  }
+
+  .mobile-app-download:hover {
+    transform: translateY(-1px);
+    border-color: var(--primary);
+  }
+
+  .mobile-app-download .icon {
+    width: 17px;
+    height: 17px;
+  }
+
+  .mobile-app-download span {
+    display: flex;
+    align-items: baseline;
+    gap: 7px;
+    font-size: 0.76rem;
+    font-weight: 750;
+  }
+
+  .mobile-app-download small {
+    color: var(--muted);
+    font-size: 0.67rem;
+    font-weight: 500;
+  }
+
+  .mobile-app-dismiss {
+    position: absolute;
+    top: 11px;
+    right: 11px;
+    width: 30px;
+    height: 30px;
+    min-height: 30px;
+    padding: 6px;
+  }
+
+  .mobile-app-dismiss .icon {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+@media (max-width: 390px) {
+  .mobile-app-notice:not([hidden]) {
+    gap: 9px 10px;
+    padding: 13px;
+  }
+
+  .mobile-app-download span {
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+  }
+}

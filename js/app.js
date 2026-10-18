@@ -24,7 +24,7 @@ import {
   updateSupportThreadStatus,
   updateMyProfile,
   uploadProfilePhoto,
-} from "./supabase.js?v=20261018-2";
+} from "./supabase.js?v=20261018-3";
 
 const icon = (name, className = "icon") =>
   `<svg class="${className}" aria-hidden="true"><use href="#i-${name}"></use></svg>`;
@@ -1166,6 +1166,20 @@ function initializeSearch() {
 }
 
 function initializeEvents() {
+  const mobileAppNotice = $("#mobile-app-notice");
+  try {
+    mobileAppNotice.hidden = window.localStorage.getItem("fusst-mobile-app-notice-dismissed") === "true";
+  } catch (error) {
+    console.warn("The Android app notice dismissal cannot be read in this browser.", error);
+  }
+  $("#dismiss-mobile-app-notice").addEventListener("click", () => {
+    mobileAppNotice.hidden = true;
+    try {
+      window.localStorage.setItem("fusst-mobile-app-notice-dismissed", "true");
+    } catch (error) {
+      console.warn("The Android app notice dismissal cannot be saved in this browser.", error);
+    }
+  });
   $$("[data-section-link]").forEach((link) => {
     link.addEventListener("click", (event) => {
       event.preventDefault();
