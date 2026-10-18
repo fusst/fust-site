@@ -43,6 +43,13 @@ on conflict (id) do update
       file_size_limit = excluded.file_size_limit,
       allowed_mime_types = excluded.allowed_mime_types;
 
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('timetable-images', 'timetable-images', false, 15728640, array['image/jpeg', 'image/png', 'image/webp'])
+on conflict (id) do update
+  set public = excluded.public,
+      file_size_limit = excluded.file_size_limit,
+      allowed_mime_types = excluded.allowed_mime_types;
+
 drop policy if exists "Anyone can view profile photos" on storage.objects;
 drop policy if exists "Authenticated users can view profile photos" on storage.objects;
 create policy "Authenticated users can view profile photos"
@@ -130,6 +137,8 @@ create table if not exists public.timetable (
   start_time time not null,
   end_time time not null check (end_time > start_time),
   room text not null default '',
+  building_name text not null default '',
+  floor_number smallint,
   created_by uuid references public.profiles (id) on delete set null,
   created_at timestamptz not null default now()
 );
@@ -138,7 +147,19 @@ alter table public.timetable
   add column if not exists section text not null default 'A',
   add column if not exists effective_from date not null default current_date,
   add column if not exists effective_until date,
-  add column if not exists week_type text not null default 'all';
+  add column if not exists week_type text not null default 'all',
+  add column if not exists building_name text not null default '',
+  add column if not exists floor_number smallint;
+alter table public.timetable
+  drop constraint if exists timetable_floor_number_check;
+alter table public.timetable
+  add constraint timetable_floor_number_check
+  check (floor_number is null or floor_number between -3 and 99);
+alter table public.timetable
+  drop constraint if exists timetable_building_name_check;
+alter table public.timetable
+  add constraint timetable_building_name_check
+  check (char_length(building_name) <= 120);
 alter table public.timetable
   drop constraint if exists timetable_week_type_check;
 alter table public.timetable
@@ -153,6 +174,17 @@ alter table public.timetable enable row level security;
 create index if not exists timetable_day_time_idx on public.timetable (day_of_week, start_time);
 create index if not exists timetable_schedule_idx
   on public.timetable (semester, section, effective_from, effective_until);
+
+create table if not exists public.portal_timetable_images (
+  asset_key text primary key check (asset_key = 'bsse'),
+  storage_path text not null check (
+    storage_path ~ '^published/timetable-[[:xdigit:]]{8}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{12}[.](jpg|png|webp)$'
+  ),
+  original_name text not null check (char_length(btrim(original_name)) between 1 and 180),
+  uploaded_by uuid not null references public.profiles (id) on delete restrict,
+  updated_at timestamptz not null default now()
+);
+alter table public.portal_timetable_images enable row level security;
 
 create table if not exists public.user_notifications (
   id uuid primary key default gen_random_uuid(),
@@ -667,6 +699,51 @@ begin
 end;
 $$;
 
+create or replace function public.publish_timetable_image(image_path text, image_name text)
+returns text
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  previous_path text;
+begin
+  if (select auth.uid()) is null
+    or not public.current_user_has_any_role(array['technical_team', 'owner']::text[]) then
+    raise exception 'Only the technical team or portal owner can publish the timetable'
+      using errcode = '42501';
+  end if;
+  if image_path is null
+    or image_path !~ '^published/timetable-[[:xdigit:]]{8}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{12}[.](jpg|png|webp)$'
+    or image_name is null
+    or char_length(btrim(image_name)) not between 1 and 180 then
+    raise exception 'Choose a timetable image with a supported filename';
+  end if;
+
+  perform pg_catalog.pg_advisory_xact_lock(73420261019);
+  select storage_path into previous_path
+    from public.portal_timetable_images
+    where asset_key = 'bsse'
+    for update;
+
+  insert into public.portal_timetable_images (asset_key, storage_path, original_name, uploaded_by, updated_at)
+    values ('bsse', image_path, btrim(image_name), (select auth.uid()), pg_catalog.now())
+    on conflict (asset_key) do update
+      set storage_path = excluded.storage_path,
+          original_name = excluded.original_name,
+          uploaded_by = excluded.uploaded_by,
+          updated_at = excluded.updated_at;
+
+  insert into public.staff_audit_log (actor_id, action, details)
+    values (
+      (select auth.uid()),
+      'timetable_image_published',
+      jsonb_build_object('original_name', btrim(image_name))
+    );
+  return previous_path;
+end;
+$$;
+
 create or replace function public.publish_timetable_week(
   schedule_entries jsonb,
   target_semester smallint,
@@ -712,7 +789,9 @@ begin
       start_time time,
       end_time time,
       instructor text,
-      room text
+      room text,
+      building_name text,
+      floor_number smallint
     )
     where entry.day_of_week is null
       or entry.day_of_week not between 0 and 6
@@ -723,8 +802,10 @@ begin
       or entry.end_time <= entry.start_time
       or char_length(coalesce(entry.instructor, '')) > 120
       or char_length(coalesce(entry.room, '')) > 80
+      or char_length(coalesce(entry.building_name, '')) > 120
+      or (entry.floor_number is not null and entry.floor_number not between -3 and 99)
   ) then
-    raise exception 'One or more timetable rows have invalid day, course, time, instructor, or room details';
+    raise exception 'One or more timetable rows have invalid day, course, time, instructor, or location details';
   end if;
   if exists (
     select 1
@@ -755,10 +836,12 @@ begin
 
   insert into public.timetable (
     course_code, course_name, instructor, day_of_week, start_time, end_time, room,
+    building_name, floor_number,
     semester, section, effective_from, effective_until, week_type, created_by
   )
   select entry.course_code, entry.course_name, coalesce(entry.instructor, ''),
          entry.day_of_week, entry.start_time, entry.end_time, coalesce(entry.room, ''),
+         coalesce(entry.building_name, ''), entry.floor_number,
          target_semester, upper(trim(target_section)), valid_from, valid_until, recurrence,
          (select auth.uid())
   from jsonb_to_recordset(schedule_entries) as entry(
@@ -768,7 +851,9 @@ begin
     start_time time,
     end_time time,
     instructor text,
-    room text
+    room text,
+    building_name text,
+    floor_number smallint
   );
   get diagnostics inserted_count = row_count;
 
@@ -907,6 +992,33 @@ create policy "CRs and teachers can delete timetable"
 revoke all on public.timetable from anon, public, authenticated;
 grant select, insert, update, delete on public.timetable to authenticated;
 
+drop policy if exists "Authenticated users can read the current timetable image" on public.portal_timetable_images;
+create policy "Authenticated users can read the current timetable image"
+  on public.portal_timetable_images for select to authenticated using (true);
+revoke all on public.portal_timetable_images from anon, public, authenticated;
+grant select on public.portal_timetable_images to authenticated;
+
+drop policy if exists "Authenticated users can view timetable images" on storage.objects;
+create policy "Authenticated users can view timetable images"
+  on storage.objects for select to authenticated
+  using (bucket_id = 'timetable-images');
+drop policy if exists "Technical team and owners can upload timetable images" on storage.objects;
+create policy "Technical team and owners can upload timetable images"
+  on storage.objects for insert to authenticated
+  with check (
+    bucket_id = 'timetable-images'
+    and (storage.foldername(name))[1] = 'published'
+    and (select public.current_user_has_any_role(array['technical_team', 'owner']::text[]))
+  );
+drop policy if exists "Technical team and owners can delete timetable images" on storage.objects;
+create policy "Technical team and owners can delete timetable images"
+  on storage.objects for delete to authenticated
+  using (
+    bucket_id = 'timetable-images'
+    and (storage.foldername(name))[1] = 'published'
+    and (select public.current_user_has_any_role(array['technical_team', 'owner']::text[]))
+  );
+
 drop policy if exists "Users can read their own notifications" on public.user_notifications;
 create policy "Users can read their own notifications"
   on public.user_notifications for select to authenticated
@@ -1006,6 +1118,8 @@ revoke all on function public.update_my_profile(text, text, text, text, text) fr
 grant execute on function public.update_my_profile(text, text, text, text, text) to authenticated;
 revoke all on function public.publish_timetable_week(jsonb, smallint, text, date, date, text) from public, anon;
 grant execute on function public.publish_timetable_week(jsonb, smallint, text, date, date, text) to authenticated;
+revoke all on function public.publish_timetable_image(text, text) from public, anon;
+grant execute on function public.publish_timetable_image(text, text) to authenticated;
 revoke all on function public.set_portal_maintenance(boolean, text) from public, anon;
 grant execute on function public.set_portal_maintenance(boolean, text) to authenticated;
 revoke all on function public.mark_notification_read(uuid) from public, anon;
@@ -1068,6 +1182,14 @@ begin
         and tablename = 'portal_settings'
     ) then
       alter publication supabase_realtime add table public.portal_settings;
+    end if;
+    if not exists (
+      select 1 from pg_publication_tables
+      where pubname = 'supabase_realtime'
+        and schemaname = 'public'
+        and tablename = 'portal_timetable_images'
+    ) then
+      alter publication supabase_realtime add table public.portal_timetable_images;
     end if;
   end if;
 end;

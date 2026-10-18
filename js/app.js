@@ -10,12 +10,13 @@ import {
   changeUserRoles,
   deleteNotice,
   deleteProfilePhoto,
+  fetchTimetableImage,
   getProfilePhotoUrl,
   insertRow,
   isSupabaseConfigured,
   markNotificationRead,
   onAuthStateChange,
-  publishTimetableWeek,
+  publishTimetableImage,
   signIn,
   signOut,
   signUp,
@@ -24,12 +25,11 @@ import {
   updateSupportThreadStatus,
   updateMyProfile,
   uploadProfilePhoto,
-} from "./supabase.js?v=20261018-3";
+} from "./supabase.js?v=20261018-9";
 
 const icon = (name, className = "icon") =>
   `<svg class="${className}" aria-hidden="true"><use href="#i-${name}"></use></svg>`;
 
-const weekDayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const roleLabels = {
   owner: "Portal Owner",
   technical_team: "Technical Team",
@@ -50,7 +50,11 @@ const RESOURCES = [
 ];
 
 const state = {
-  data: { notices: [], assignments: [], timetable: [], profiles: [] },
+  data: { notices: [], assignments: [], profiles: [] },
+  timetableImage: null,
+  timetableLoading: true,
+  timetableLoadError: null,
+  timetablePreviewUrl: null,
   user: null,
   profile: null,
   previewRole: defaultPreviewRole,
@@ -60,6 +64,9 @@ const state = {
   supportMessages: [],
   supportProfiles: [],
   activeSupportThreadId: null,
+  supportStatusFilter: "all",
+  supportSearch: "",
+  supportStatusUpdating: new Set(),
   staffPanel: "overview",
   staffUsers: [],
   maintenance: null,
@@ -95,16 +102,12 @@ function formatDate(value, options = { month: "short", day: "numeric" }) {
   return new Intl.DateTimeFormat("en-PK", { timeZone: "Asia/Karachi", ...options }).format(date);
 }
 
-function formatTime(value) {
-  if (!value) return "TBA";
-  const [hour, minute] = value.split(":").map(Number);
-  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return "TBA";
-  const suffix = hour >= 12 ? "PM" : "AM";
-  return `${hour % 12 || 12}:${String(minute).padStart(2, "0")} ${suffix}`;
-}
-
 function roleTitle(role) {
   return roleLabels[role] ?? roleLabels.student;
+}
+
+function supportStatusLabel(status) {
+  return { open: "Open", in_progress: "In review", closed: "Closed" }[status] || "Open";
 }
 
 function profileRoles(profile) {
@@ -200,51 +203,18 @@ function renderNoticeCard(notice, compact = false) {
   </article>`;
 }
 
-function renderScheduleItem(entry, index) {
-  const now = new Date();
-  const start = entry.start_time?.slice(0, 5);
-  const [startHour = 0, startMinute = 0] = (start ?? "").split(":").map(Number);
-  const isNext = index === 0 && (now.getHours() < startHour || (now.getHours() === startHour && now.getMinutes() < startMinute));
-  const courseClass = index % 2 === 0 ? "schedule-violet" : "schedule-teal";
-  return `<article class="schedule-item"><div class="schedule-times"><span>${escapeHtml(formatTime(entry.start_time))}</span><i></i><span>${escapeHtml(formatTime(entry.end_time))}</span></div><span class="schedule-indicator ${courseClass}${isNext ? " indicator-active" : ""}"></span><div class="schedule-course ${courseClass}"><span class="course-code">${escapeHtml(entry.course_code || "BSSE")}</span><strong>${escapeHtml(entry.course_name || "Class")}</strong><span class="course-instructor">${escapeHtml(entry.instructor || "Course instructor")}</span></div><span class="schedule-location">${icon("pin")}${escapeHtml(entry.room || "Room TBA")}</span></article>`;
-}
-
-function getTodayClasses() {
-  return [...state.data.timetable]
-    .filter((entry) => Number(entry.day_of_week) === new Date().getDay() && timetableEntryApplies(entry, new Date()))
-    .filter((entry) => !state.profile || (
-      Number(entry.semester ?? state.profile.semester) === Number(state.profile.semester)
-      && String(entry.section ?? state.profile.section).toUpperCase() === String(state.profile.section).toUpperCase()
-    ))
-    .sort((left, right) => (left.start_time ?? "").localeCompare(right.start_time ?? ""));
-}
-
-function timetableEntryApplies(entry, date) {
-  const selected = localDateInputValue(date);
-  if (entry.effective_from && selected < entry.effective_from) return false;
-  if (entry.effective_until && selected > entry.effective_until) return false;
-  if (entry.week_type && entry.week_type !== "all") {
-    const week = new Date(date);
-    week.setDate(week.getDate() + 4 - (week.getDay() || 7));
-    const yearStart = new Date(week.getFullYear(), 0, 1);
-    const weekNumber = Math.ceil((((week - yearStart) / 86400000) + 1) / 7);
-    if ((entry.week_type === "even") !== (weekNumber % 2 === 0)) return false;
-  }
-  return true;
-}
 function renderDashboard() {
   const notices = [...state.data.notices].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
   const assignments = [...state.data.assignments].sort((a, b) => new Date(a.due_at) - new Date(b.due_at));
   const upcomingAssignments = assignments.filter((item) => new Date(item.due_at) >= new Date());
-  const classes = getTodayClasses();
   $("#stat-notices").textContent = String(notices.filter((notice) => new Date(notice.created_at) > new Date(Date.now() - 7 * 86400000)).length).padStart(2, "0");
   $("#stat-assignments").textContent = String(upcomingAssignments.length).padStart(2, "0");
-  $("#stat-classes").textContent = String(classes.length).padStart(2, "0");
+  $("#stat-classes").textContent = state.timetableImage ? "LIVE" : "—";
   $("#notice-nav-count").textContent = String(notices.length);
   $("#assignment-nav-count").textContent = String(upcomingAssignments.length);
-  $("#dashboard-schedule").innerHTML = classes.length
-    ? classes.map(renderScheduleItem).join("")
-    : `<div class="empty-state compact-empty"><span class="empty-illustration">☀️</span><strong>A little room to breathe.</strong><p>No classes scheduled for today.</p></div>`;
+  $("#dashboard-timetable").innerHTML = state.timetableImage
+    ? `<button class="dashboard-timetable-preview" type="button" data-go="timetable" aria-label="Open the latest BSSE class timetable"><img src="${escapeHtml(state.timetableImage.signed_url)}" alt="Preview of the current BSSE class timetable" loading="lazy"><span>View full timetable ${icon("arrow")}</span></button>`
+    : `<div class="empty-state compact-empty"><span class="empty-illustration">🗓️</span><strong>Your class schedule, all in one place.</strong><p>The latest BSSE timetable will appear here.</p><button class="text-link" type="button" data-go="timetable">Open timetable ${icon("arrow")}</button></div>`;
   $("#dashboard-notices").innerHTML = notices.length
     ? notices.slice(0, 3).map((notice, index) => `<button class="latest-notice" type="button" data-go="notices"><span class="latest-notice-marker marker-${index % 3}"></span><span class="latest-notice-content"><span class="latest-notice-category">${escapeHtml((notice.category || "academic").toUpperCase())}</span><strong>${escapeHtml(notice.title)}</strong><span class="latest-notice-meta">${escapeHtml(noticeAuthorLabel(notice))} <i>·</i> ${escapeHtml(formatDate(notice.created_at, { month: "short", day: "numeric" }))}</span></span>${icon("chevron", "icon latest-chevron")}</button>`).join("")
     : `<div class="empty-state compact-empty"><span class="empty-illustration">📭</span><strong>You’re all caught up.</strong><p>No notices just yet.</p></div>`;
@@ -282,38 +252,38 @@ function renderNotices() {
 }
 
 function renderTimetable() {
-  if (!$("#timetable-date").value) $("#timetable-date").value = localDateInputValue();
-  if (!$("#timetable-semester").dataset.initialized) {
-    $("#timetable-semester").value = String(state.profile?.semester || 5);
-    $("#timetable-semester").dataset.initialized = "true";
+  const image = state.timetableImage;
+  if (state.timetableLoading) {
+    $("#timetable-view").innerHTML = `<div class="timetable-empty timetable-loading" aria-busy="true"><span class="timetable-loading-mark"></span><div><strong>Loading your class timetable…</strong><p>Getting the latest schedule from the portal.</p></div></div>`;
+    return;
   }
-  if (!$("#timetable-section").value) $("#timetable-section").value = state.profile?.section || "A";
-  const selectedDate = new Date(`${$("#timetable-date").value || new Date().toISOString().slice(0, 10)}T00:00:00`);
-  const semester = Number($("#timetable-semester").value || state.profile?.semester || 5);
-  const section = ($("#timetable-section").value || state.profile?.section || "A").trim().toUpperCase();
-  const grouped = Array.from({ length: 7 }, (_, day) => ({
-    day,
-    classes: state.data.timetable
-      .filter((entry) => Number(entry.day_of_week) === day
-        && Number(entry.semester ?? semester) === semester
-        && String(entry.section ?? section).toUpperCase() === section
-        && timetableEntryApplies(entry, selectedDate))
-      .sort((left, right) => (left.start_time ?? "").localeCompare(right.start_time ?? "")),
-  })).filter(({ classes }) => classes.length);
+  if (state.timetableLoadError) {
+    $("#timetable-view").innerHTML = `<div class="timetable-empty" role="alert"><span class="timetable-empty-icon">${icon("bell")}</span><div><strong>The timetable image is unavailable.</strong><p>${escapeHtml(state.timetableLoadError)}</p></div><button class="secondary-button" type="button" data-refresh-timetable>${icon("refresh")} Try again</button></div>`;
+    return;
+  }
+  if (state.loadError) {
+    $("#timetable-view").innerHTML = `<div class="timetable-empty" role="alert"><span class="timetable-empty-icon">${icon("bell")}</span><div><strong>The timetable could not be loaded.</strong><p>Check the connection message above, then try again.</p></div><button class="secondary-button" type="button" data-refresh-timetable>${icon("refresh")} Try again</button></div>`;
+    return;
+  }
+  if (!state.user) {
+    $("#timetable-view").innerHTML = `<div class="timetable-empty"><span class="timetable-empty-icon">${icon("calendar")}</span><div><strong>One class. One up-to-date timetable.</strong><p>Sign in to view the latest schedule shared for your BSSE class.</p></div><button class="primary-button" type="button" data-open-signin>Sign in to view</button></div>`;
+    return;
+  }
+  if (!image) {
+    $("#timetable-view").innerHTML = `<div class="timetable-empty"><span class="timetable-empty-icon">${icon("calendar")}</span><div><strong>The class timetable is on its way.</strong><p>${isStaff() ? "Choose the current timetable image above and publish it for everyone." : "The latest timetable image will appear here as soon as staff publish it."}</p></div></div>`;
+    return;
+  }
 
-  const effective = state.data.timetable.filter((entry) =>
-    Number(entry.semester ?? semester) === semester
-      && String(entry.section ?? section).toUpperCase() === section
-      && timetableEntryApplies(entry, selectedDate));
-  const earliest = effective.map((entry) => entry.effective_from).filter(Boolean).sort().at(-1);
-  const latest = effective.map((entry) => entry.effective_until).filter(Boolean).sort().at(-1);
-  $("#timetable-effective-dates").textContent = effective.length
-    ? `Effective ${formatDate(earliest || selectedDate, { month: "short", day: "numeric", year: "numeric" })}${latest ? ` – ${formatDate(latest, { month: "short", day: "numeric", year: "numeric" })}` : " onward"}`
-    : "No schedule published for this date.";
-
-  $("#timetable-list").innerHTML = grouped.length
-    ? grouped.map(({ day, classes }) => `<section class="day-column"><div class="day-heading${day === selectedDate.getDay() ? " is-today" : ""}"><span>${escapeHtml(weekDayNames[day])}</span>${day === selectedDate.getDay() ? '<span class="today-marker">SELECTED</span>' : ""}<small>${classes.length} ${classes.length === 1 ? "class" : "classes"}</small></div><div class="day-classes">${classes.map((entry, index) => `<article class="class-card class-card-${index % 4}"><div class="class-time">${icon("clock")} ${escapeHtml(formatTime(entry.start_time))} – ${escapeHtml(formatTime(entry.end_time))}</div><span class="class-code">${escapeHtml(entry.course_code || "BSSE")}</span><h3>${escapeHtml(entry.course_name || "Class")}</h3><p class="class-instructor">${escapeHtml(entry.instructor || "Course instructor")}</p><span class="class-room">${icon("pin")} ${escapeHtml(entry.room || "Room TBA")}</span></article>`).join("")}</div></section>`).join("")
-    : `<div class="empty-state grid-empty"><span class="empty-illustration">🗓️</span><strong>Space to shape your week.</strong><p>Your class schedule will show up here when it’s ready.</p></div>`;
+  const publisher = state.data.profiles.find((profile) => profile.id === image.uploaded_by);
+  const publisherName = publisher?.full_name?.trim() || "Portal staff";
+  $("#timetable-view").innerHTML = `<article class="timetable-image-card">
+    <header class="timetable-image-card-header"><div class="timetable-image-status"><span class="timetable-live-dot"></span><span>Current class timetable</span></div><span class="timetable-image-cohort">BSSE <i>·</i> OUR CLASS</span></header>
+    <div class="timetable-image-stage"><img id="timetable-image" src="${escapeHtml(image.signed_url)}" alt="Current timetable image for the FUSST BSSE class" decoding="async"><span class="timetable-image-corner timetable-image-corner-top"></span><span class="timetable-image-corner timetable-image-corner-bottom"></span></div>
+    <footer class="timetable-image-card-footer"><div><strong>Always check the latest version.</strong><span>Updated ${escapeHtml(formatDate(image.updated_at, { month: "long", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" }))} by ${escapeHtml(publisherName)}</span></div><a class="secondary-button" href="${escapeHtml(image.signed_url)}" target="_blank" rel="noopener noreferrer">${icon("arrow")} Open full size</a></footer>
+  </article>`;
+  $("#timetable-image").addEventListener("error", () => {
+    $("#timetable-view").innerHTML = `<div class="timetable-empty" role="alert"><span class="timetable-empty-icon">${icon("bell")}</span><div><strong>The timetable image could not be loaded.</strong><p>Refresh the timetable to request a fresh secure image link.</p></div><button class="secondary-button" type="button" data-refresh-timetable>${icon("refresh")} Refresh timetable</button></div>`;
+  });
 }
 
 function renderAssignments() {
@@ -364,24 +334,52 @@ function renderDirectory() {
 function renderSupport() {
   const staff = isStaff();
   const currentUserId = state.user?.id;
-  const threads = state.supportThreads.filter((thread) => staff || thread.user_id === currentUserId);
+  const threads = state.supportThreads
+    .filter((thread) => staff || thread.user_id === currentUserId)
+    .sort((left, right) => new Date(right.updated_at) - new Date(left.updated_at));
   const openCount = threads.filter((thread) => thread.status !== "closed").length;
+  const statusCounts = {
+    all: threads.length,
+    open: threads.filter((thread) => thread.status === "open").length,
+    in_progress: threads.filter((thread) => thread.status === "in_progress").length,
+    closed: threads.filter((thread) => thread.status === "closed").length,
+  };
+  const filteredThreads = threads.filter((thread) => {
+    const profile = state.supportProfiles.find((person) => person.id === thread.user_id);
+    const searchable = `${thread.subject} ${profile?.full_name || ""} ${supportStatusLabel(thread.status)}`.toLowerCase();
+    return (state.supportStatusFilter === "all" || thread.status === state.supportStatusFilter)
+      && searchable.includes(state.supportSearch.trim().toLowerCase());
+  });
+  $("#support-overview").innerHTML = [
+    ["open", "Open", "Waiting for attention"],
+    ["in_progress", "In review", "Being looked into"],
+    ["closed", "Closed", "Resolved conversations"],
+  ].map(([status, label, hint]) => `<article class="support-metric status-${status}"><span>${escapeHtml(label)}</span><strong>${statusCounts[status]}</strong><small>${escapeHtml(hint)}</small></article>`).join("");
   $("#support-thread-count").textContent = String(threads.length);
   $("#support-nav-count").textContent = String(staff ? openCount : threads.length);
   $("#support-nav-count").hidden = (staff ? openCount : threads.length) === 0;
   $("#support-list-heading").textContent = staff ? "All requests" : "Your messages";
   $("#new-support-thread").hidden = !state.user;
+  $("#support-search").value = state.supportSearch;
+  $("#support-status-filters").innerHTML = [
+    ["all", "All"],
+    ["open", "Open"],
+    ["in_progress", "In review"],
+    ["closed", "Closed"],
+  ].map(([status, label]) => `<button class="support-filter-button${state.supportStatusFilter === status ? " is-selected" : ""}" type="button" data-support-filter="${status}" aria-pressed="${state.supportStatusFilter === status}">${label}<span>${statusCounts[status]}</span></button>`).join("");
   const list = $("#support-thread-list");
 
   if (!state.user) {
     list.innerHTML = `<div class="support-list-empty"><span>🔐</span><strong>Sign in to report an issue</strong><p>Your conversation will stay private and follow you across devices.</p><button class="text-link" type="button" data-open-signin>Sign in to continue ${icon("arrow")}</button></div>`;
   } else if (!threads.length) {
     list.innerHTML = `<div class="support-list-empty"><span>🌿</span><strong>Nothing in your queue.</strong><p>${staff ? "Support conversations will appear here when a student reports an issue." : "You haven’t reported an issue yet. When something goes wrong, we’re here to help."}</p></div>`;
+  } else if (!filteredThreads.length) {
+    list.innerHTML = `<div class="support-list-empty"><span>🔎</span><strong>No matching conversations.</strong><p>Try a different search or status filter.</p><button class="text-link" type="button" data-support-clear-filters>Clear filters</button></div>`;
   } else {
-    list.innerHTML = threads.map((thread) => {
+    list.innerHTML = filteredThreads.map((thread, index) => {
       const profile = state.supportProfiles.find((person) => person.id === thread.user_id);
       const current = state.activeSupportThreadId === thread.id;
-      return `<button class="support-thread-item${current ? " is-active" : ""}" type="button" data-support-thread="${escapeHtml(thread.id)}"><span class="thread-avatar ${avatarColors[(threads.indexOf(thread)) % avatarColors.length]}">${escapeHtml((profile?.full_name || "F").trim().charAt(0).toUpperCase())}</span><span class="thread-item-content"><strong>${escapeHtml(thread.subject)}</strong><span>${staff ? `${escapeHtml(profile?.full_name || "Portal user")} · ` : ""}${escapeHtml(formatDate(thread.updated_at, { month: "short", day: "numeric" }))}</span><small>${escapeHtml(thread.status.replace("_", " "))}</small></span><span class="thread-status-dot status-${escapeHtml(thread.status)}"></span></button>`;
+      return `<button class="support-thread-item${current ? " is-active" : ""}" type="button" data-support-thread="${escapeHtml(thread.id)}"><span class="thread-avatar ${avatarColors[index % avatarColors.length]}">${escapeHtml((profile?.full_name || "F").trim().charAt(0).toUpperCase())}</span><span class="thread-item-content"><strong>${escapeHtml(thread.subject)}</strong><span>${staff ? `${escapeHtml(profile?.full_name || "Portal user")} · ` : ""}${escapeHtml(formatDate(thread.updated_at, { month: "short", day: "numeric" }))}</span><small class="support-status-pill status-${escapeHtml(thread.status)}">${escapeHtml(supportStatusLabel(thread.status))}</small></span><span class="thread-status-dot status-${escapeHtml(thread.status)}"></span></button>`;
     }).join("");
   }
 
@@ -394,15 +392,57 @@ function renderSupport() {
 
   const messages = state.supportMessages.filter((message) => message.thread_id === activeThread.id);
   const profile = state.supportProfiles.find((person) => person.id === activeThread.user_id);
-  chat.innerHTML = `<div class="chat-header"><span class="thread-avatar avatar-mint">${escapeHtml((profile?.full_name || "F").trim().charAt(0).toUpperCase())}</span><span class="chat-header-copy"><strong>${escapeHtml(activeThread.subject)}</strong><small>${staff ? escapeHtml(profile?.full_name || "Portal user") : "FUSST technical team"} · <span class="status-text-${escapeHtml(activeThread.status)}">${escapeHtml(activeThread.status.replace("_", " "))}</span></small></span>${staff && activeThread.status !== "closed" ? `<label class="chat-status-control"><span class="visually-hidden">Conversation status</span><select data-support-status="${escapeHtml(activeThread.id)}" aria-label="Change conversation status"><option value="open"${activeThread.status === "open" ? " selected" : ""}>Open</option><option value="in_progress"${activeThread.status === "in_progress" ? " selected" : ""}>In progress</option><option value="closed">Close request</option></select></label>` : ""}</div><div class="chat-message-list" id="chat-message-list">${messages.length ? messages.map((message) => {
+  chat.innerHTML = `<div class="chat-header"><span class="thread-avatar avatar-mint">${escapeHtml((profile?.full_name || "F").trim().charAt(0).toUpperCase())}</span><span class="chat-header-copy"><strong>${escapeHtml(activeThread.subject)}</strong><small>${staff ? escapeHtml(profile?.full_name || "Portal user") : "FUSST technical team"} · <span class="status-text-${escapeHtml(activeThread.status)}">${escapeHtml(supportStatusLabel(activeThread.status))}</span></small></span>${staff ? `<div class="support-status-actions" role="group" aria-label="Set support request status">${[["open", "Open"], ["in_progress", "In review"], ["closed", "Closed"]].map(([status, label]) => `<button class="support-action-button${activeThread.status === status ? " is-current" : ""}" type="button" data-support-status-action="${status}" data-support-thread-id="${escapeHtml(activeThread.id)}" aria-pressed="${activeThread.status === status}"${activeThread.status === status || state.supportStatusUpdating.has(activeThread.id) ? " disabled" : ""}>${escapeHtml(label)}</button>`).join("")}</div>` : `<span class="support-status-pill status-${escapeHtml(activeThread.status)}">${escapeHtml(supportStatusLabel(activeThread.status))}</span>`}</div><div class="chat-message-list" id="chat-message-list">${messages.length ? messages.map((message) => {
     const ownMessage = message.sender_id === currentUserId;
     const sender = ownMessage ? normalizedProfileName(state.profile, state.user) : staff ? "Portal user" : "FUSST Tech Team";
     return `<article class="chat-message${ownMessage ? " is-own" : ""}"><span class="chat-message-sender">${escapeHtml(sender)}</span><div class="chat-bubble">${escapeHtml(message.body)}</div><time>${escapeHtml(formatDate(message.created_at, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }))} · Deletes ${escapeHtml(formatDate(message.expires_at, { month: "short", day: "numeric" }))}</time></article>`;
-  }).join("") : '<div class="support-list-empty"><span>👋</span><strong>Conversation started.</strong><p>Send the first message when you’re ready.</p></div>'}</div>${activeThread.status === "closed" ? `<div class="chat-closed-banner">${icon("check")} This support conversation is closed.</div>` : `<form class="chat-reply-form" id="chat-reply-form" data-chat-thread="${escapeHtml(activeThread.id)}"><textarea name="message" rows="2" required maxlength="4000" placeholder="${staff ? "Reply to this student..." : "Add any details that will help us investigate..."}" aria-label="Your message"></textarea><div class="chat-reply-footer"><span>Private conversation · messages expire in 7 days</span><button class="primary-button" type="submit" aria-label="Send message">${icon("send")} Send</button></div></form>`}`;
+  }).join("") : '<div class="support-list-empty"><span>👋</span><strong>Conversation started.</strong><p>Send the first message when you’re ready.</p></div>'}</div>${activeThread.status === "closed" ? `<div class="chat-closed-banner">${icon("check")} This support conversation is closed. ${staff ? "Choose Open or In review above to reopen replies." : "Contact the technical team if you need more help."}</div>` : `<form class="chat-reply-form" id="chat-reply-form" data-chat-thread="${escapeHtml(activeThread.id)}"><textarea name="message" rows="2" required maxlength="4000" placeholder="${staff ? "Reply to this student..." : "Add any details that will help us investigate..."}" aria-label="Your message"></textarea><div class="chat-reply-footer"><span>Private conversation · messages expire in 7 days</span><button class="primary-button" type="submit" aria-label="Send message">${icon("send")} Send</button></div></form>`}`;
   requestAnimationFrame(() => {
     const messagesPane = $("#chat-message-list");
     if (messagesPane) messagesPane.scrollTop = messagesPane.scrollHeight;
   });
+}
+
+async function setSupportThreadStatus(threadId, nextStatus, button) {
+  if (!isStaff()) {
+    toast("Only the technical team or portal owner can update support requests.", "error");
+    return;
+  }
+  const thread = state.supportThreads.find((item) => item.id === threadId);
+  if (!thread || !["open", "in_progress", "closed"].includes(nextStatus)) {
+    toast("This support request is no longer available. Refresh and try again.", "error");
+    return;
+  }
+  if (thread.status === nextStatus || state.supportStatusUpdating.has(threadId)) return;
+
+  state.supportStatusUpdating.add(threadId);
+  button.closest(".support-status-actions")?.querySelectorAll("button").forEach((control) => {
+    control.disabled = true;
+  });
+  try {
+    await updateSupportThreadStatus(threadId, nextStatus);
+    state.supportThreads = state.supportThreads.map((item) => (
+      item.id === threadId
+        ? { ...item, status: nextStatus, updated_at: new Date().toISOString() }
+        : item
+    ));
+    if (state.supportStatusFilter !== "all" && state.supportStatusFilter !== nextStatus) {
+      state.supportStatusFilter = "all";
+    }
+    state.supportStatusUpdating.delete(threadId);
+    renderSupport();
+    if (initialSection === "control" && isStaff() && state.staffPanel === "support") {
+      renderSupportQueue();
+    }
+    toast(`Support request marked ${supportStatusLabel(nextStatus).toLowerCase()}.`);
+  } catch (error) {
+    toast(error.message || "Could not update the support request.", "error");
+    button.closest(".support-status-actions")?.querySelectorAll("button").forEach((control) => {
+      control.disabled = control.getAttribute("aria-pressed") === "true";
+    });
+  } finally {
+    state.supportStatusUpdating.delete(threadId);
+  }
 }
 
 function renderStaffConsole() {
@@ -456,9 +496,9 @@ function renderStaffUsers() {
 function renderSupportQueue() {
   const threads = state.supportThreads;
   const openCount = threads.filter((thread) => thread.status !== "closed").length;
-  $("#staff-panel").innerHTML = `<div class="admin-intro"><div><span class="section-kicker"><span class="kicker-teal"></span> PRIVATE, SEVEN-DAY CONVERSATIONS</span><h2>Support queue</h2><p>${openCount} active ${openCount === 1 ? "request" : "requests"}. Select a conversation to reply directly from the Support section.</p></div><button class="secondary-button" type="button" data-refresh-support>${icon("refresh")} Refresh queue</button></div>${threads.length ? `<div class="support-queue-list">${threads.map((thread) => {
+  $("#staff-panel").innerHTML = `<div class="admin-intro"><div><span class="section-kicker"><span class="kicker-teal"></span> PRIVATE, SEVEN-DAY CONVERSATIONS</span><h2>Support queue</h2><p>${openCount} active ${openCount === 1 ? "request" : "requests"}. Select a conversation to reply directly from the Support section.</p></div><button class="secondary-button" type="button" data-refresh-support>${icon("refresh")} Refresh queue</button></div>${threads.length ? `<div class="support-queue-list">${[...threads].sort((left, right) => new Date(right.updated_at) - new Date(left.updated_at)).map((thread) => {
     const profile = state.supportProfiles.find((person) => person.id === thread.user_id);
-    return `<button class="support-queue-item" type="button" data-open-thread="${escapeHtml(thread.id)}"><span class="thread-avatar avatar-mint">${escapeHtml((profile?.full_name || "F").trim().charAt(0).toUpperCase())}</span><span class="support-queue-copy"><strong>${escapeHtml(thread.subject)}</strong><small>${escapeHtml(profile?.full_name || "Portal user")} · ${escapeHtml(formatDate(thread.updated_at, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }))}</small></span><span class="support-status-pill status-${escapeHtml(thread.status)}">${escapeHtml(thread.status.replace("_", " "))}</span>${icon("chevron", "icon")}</button>`;
+    return `<button class="support-queue-item" type="button" data-open-thread="${escapeHtml(thread.id)}"><span class="thread-avatar avatar-mint">${escapeHtml((profile?.full_name || "F").trim().charAt(0).toUpperCase())}</span><span class="support-queue-copy"><strong>${escapeHtml(thread.subject)}</strong><small>${escapeHtml(profile?.full_name || "Portal user")} · ${escapeHtml(formatDate(thread.updated_at, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }))}</small></span><span class="support-status-pill status-${escapeHtml(thread.status)}">${escapeHtml(supportStatusLabel(thread.status))}</span>${icon("chevron", "icon")}</button>`;
   }).join("")}</div>` : `<div class="empty-state"><span class="empty-illustration">🫶</span><strong>Your queue is clear.</strong><p>New student issue reports will arrive here.</p></div>`}`;
 }
 
@@ -518,6 +558,7 @@ function updateRoleControls() {
     button.setAttribute("aria-hidden", String(!isPrivileged));
     button.tabIndex = isPrivileged ? 0 : -1;
   });
+  $("#timetable-upload-form").hidden = !isStaff();
 
   $("#role-mode-caption").textContent = state.user
     ? `Verified roles: ${roleNames(verifiedRoles) || "BSSE Student"}`
@@ -572,81 +613,6 @@ function openDialog(content, mode) {
   $("#dialog-fields").querySelector("input:not([type=hidden]), textarea, select")?.focus();
 }
 
-function localDateInputValue(date = new Date()) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-}
-
-function parseTimetableCsv(text) {
-  const rows = [];
-  let row = [];
-  let value = "";
-  let quoted = false;
-  const input = String(text || "").replace(/\r\n?/g, "\n");
-  for (let index = 0; index < input.length; index += 1) {
-    const character = input[index];
-    if (character === '"' && quoted && input[index + 1] === '"') {
-      value += '"';
-      index += 1;
-    } else if (character === '"') {
-      quoted = !quoted;
-    } else if (character === "," && !quoted) {
-      row.push(value.trim());
-      value = "";
-    } else if (character === "\n" && !quoted) {
-      row.push(value.trim());
-      if (row.some(Boolean)) rows.push(row);
-      row = [];
-      value = "";
-    } else {
-      value += character;
-    }
-  }
-  if (quoted) throw new Error("Close the quotation mark in your timetable CSV.");
-  row.push(value.trim());
-  if (row.some(Boolean)) rows.push(row);
-  const firstRow = rows[0]?.map((cell) => cell.toLowerCase().replaceAll(" ", "_")) ?? [];
-  if (firstRow[0] === "day" || firstRow[0] === "day_of_week") rows.shift();
-  if (!rows.length) throw new Error("Paste at least one timetable class.");
-  if (rows.length > 100) throw new Error("A single schedule can contain at most 100 classes.");
-
-  const entries = rows.map((cells, index) => {
-    if (cells.length !== 7) throw new Error(`CSV row ${index + 1} needs exactly 7 columns.`);
-    const dayText = cells[0].toLowerCase();
-    const day = /^\d$/.test(dayText) ? Number(dayText) : weekDayNames.findIndex((name) => name.toLowerCase() === dayText);
-    const [startTime, endTime] = [cells[3], cells[4]];
-    if (day < 0 || day > 6) throw new Error(`CSV row ${index + 1} has an invalid day.`);
-    const validTime = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
-    if (!validTime.test(startTime) || !validTime.test(endTime) || endTime <= startTime) {
-      throw new Error(`CSV row ${index + 1} needs valid 24-hour start and end times.`);
-    }
-    if (!cells[1] || cells[1].length > 30 || !cells[2] || cells[2].length > 120
-      || cells[5].length > 120 || cells[6].length > 80) {
-      throw new Error(`CSV row ${index + 1} has a missing or oversized course, instructor, or room field.`);
-    }
-    return {
-      day_of_week: day,
-      course_code: cells[1].toUpperCase(),
-      course_name: cells[2],
-      start_time: startTime,
-      end_time: endTime,
-      instructor: cells[5],
-      room: cells[6],
-    };
-  });
-  for (let first = 0; first < entries.length; first += 1) {
-    for (let second = first + 1; second < entries.length; second += 1) {
-      const left = entries[first];
-      const right = entries[second];
-      if (left.day_of_week === right.day_of_week
-        && left.start_time < right.end_time
-        && right.start_time < left.end_time) {
-        throw new Error(`${weekDayNames[left.day_of_week]} has overlapping classes (${left.course_code} and ${right.course_code}).`);
-      }
-    }
-  }
-  return entries;
-}
-
 function openComposer(table) {
   const postingRole = effectiveRole();
   const roleMessage = state.user
@@ -682,18 +648,7 @@ function openComposer(table) {
     }, "publish:assignments");
     return;
   }
-  const profile = state.profile || {};
-  const section = profile.section || "A";
-  const semester = profile.semester || 5;
-  openDialog({
-    icon: "calendar",
-    eyebrow: "BULK PUBLISH · VERSIONED SCHEDULE",
-    title: "Plan a whole week.",
-    description: "Paste a spreadsheet-ready CSV. Supabase validates the whole schedule and replaces it atomically for the selected section and effective dates.",
-    submitLabel: "Publish schedule",
-    footnote: roleMessage,
-    fields: `<div class="form-field-row"><label class="form-field">Semester<select name="semester" required>${Array.from({ length: 8 }, (_, index) => index + 1).map((item) => `<option value="${item}"${Number(semester) === item ? " selected" : ""}>Semester ${item}</option>`).join("")}</select></label><label class="form-field">Section<input name="section" required maxlength="12" value="${escapeHtml(section)}" autocomplete="off"></label></div><div class="form-field-row"><label class="form-field">Effective from<input name="valid_from" type="date" required value="${localDateInputValue()}"></label><label class="form-field">Effective until<input name="valid_until" type="date"></label></div><label class="form-field">Repeat<select name="recurrence"><option value="all">Every week</option><option value="odd">Odd-numbered weeks</option><option value="even">Even-numbered weeks</option></select></label><label class="form-field">Weekly schedule CSV ${commonRequired}<textarea name="schedule_csv" required rows="10" spellcheck="false" placeholder="day,course_code,course_name,start_time,end_time,instructor,room&#10;Monday,SE-301,Software Design,08:30,10:00,Dr. Khan,Lab 04&#10;Wednesday,CS-306,Database Systems,10:15,11:45,Sir Ahsan,Room 12"></textarea></label><p class="form-help">One class per row; use 24-hour times. Dates are inclusive. Leave “Effective until” blank for an open-ended schedule. Uploading the same section and dates replaces that schedule as one database transaction.</p>`,
-  }, "publish:timetable");
+  throw new Error("Unsupported portal content type.");
 }
 
 function openProfileEditor() {
@@ -782,18 +737,7 @@ function buildInsertPayload(table, formData) {
       author_name: normalizedProfileName(state.profile, state.user),
     };
   }
-  const startTime = String(formData.get("start_time"));
-  const endTime = String(formData.get("end_time"));
-  if (!startTime || !endTime || endTime <= startTime) throw new Error("The class must end after it starts.");
-  return {
-    course_name: String(formData.get("course_name")).trim(),
-    course_code: String(formData.get("course_code")).trim().toUpperCase(),
-    day_of_week: Number(formData.get("day_of_week")),
-    start_time: `${startTime}:00`,
-    end_time: `${endTime}:00`,
-    instructor: String(formData.get("instructor") || "").trim(),
-    room: String(formData.get("room") || "").trim(),
-  };
+  throw new Error("Unsupported portal content type.");
 }
 
 async function handleDialogSubmit(event) {
@@ -894,29 +838,11 @@ async function handleDialogSubmit(event) {
         return;
       }
       const table = state.dialogMode.split(":")[1];
-      if (table === "timetable") {
-        const validFrom = String(formData.get("valid_from"));
-        const validUntil = String(formData.get("valid_until") || "");
-        if (validUntil && validUntil < validFrom) throw new Error("The effective end date must be on or after the start date.");
-        const entries = parseTimetableCsv(formData.get("schedule_csv"));
-        const inserted = await publishTimetableWeek({
-          entries,
-          semester: Number(formData.get("semester")),
-          section: String(formData.get("section")).trim().toUpperCase(),
-          validFrom,
-          validUntil,
-          recurrence: String(formData.get("recurrence")),
-        });
-        $("#app-dialog").close();
-        await refreshData();
-        toast(`${inserted} ${inserted === 1 ? "class" : "classes"} published to the timetable.`);
-        return;
-      }
       const payload = buildInsertPayload(table, formData);
       await insertRow(table, payload);
       $("#app-dialog").close();
       await refreshData();
-      toast(table === "notices" ? "Your notice is now live." : table === "assignments" ? "Your assignment has been posted." : "The timetable has been updated.");
+      toast(table === "notices" ? "Your notice is now live." : "Your assignment has been posted.");
     }
   } catch (error) {
     showDialogError(error.message || "Something went wrong. Please try again.");
@@ -928,9 +854,12 @@ async function handleDialogSubmit(event) {
 
 async function refreshData() {
   state.loadError = null;
+  state.timetableLoading = true;
+  state.timetableLoadError = null;
   $(".connection-error")?.remove();
   if (!isSupabaseConfigured()) {
-    state.data = { notices: [], assignments: [], timetable: [], profiles: [] };
+    state.data = { notices: [], assignments: [], profiles: [] };
+    state.timetableImage = null;
     state.profile = null;
     state.notifications = [];
     state.supportThreads = [];
@@ -944,7 +873,8 @@ async function refreshData() {
       await initializeSupabase();
       state.maintenance = await getPortalSettings();
       if (!state.user) {
-        state.data = { notices: [], assignments: [], timetable: [], profiles: [] };
+        state.data = { notices: [], assignments: [], profiles: [] };
+        state.timetableImage = null;
         state.profile = null;
         state.notifications = [];
         state.supportThreads = [];
@@ -952,19 +882,24 @@ async function refreshData() {
         state.supportProfiles = [];
         state.staffUsers = [];
       } else {
-        const [notices, assignments, timetable, profiles, notifications, supportThreads, profile] = await Promise.all([
+        const [notices, assignments, profiles, notifications, supportThreads, profile] = await Promise.all([
           fetchRows("notices"),
           fetchRows("assignments"),
-          fetchRows("timetable"),
           fetchRows("profiles"),
           fetchRows("user_notifications"),
           fetchRows("support_threads"),
           getCurrentProfile(),
         ]);
-        state.data = { notices, assignments, timetable, profiles };
-        $("#timetable-semester").value = String(profile.semester || 5);
-        $("#timetable-semester").dataset.initialized = "true";
-        $("#timetable-section").value = profile.section || "A";
+        state.data = { notices, assignments, profiles };
+        try {
+          state.timetableImage = await fetchTimetableImage();
+        } catch (error) {
+          state.timetableImage = null;
+          state.timetableLoadError = ["PGRST205", "42P01"].includes(error.code)
+            ? "The timetable image service is not set up yet. Apply the latest Supabase schema migration, then refresh."
+            : "Check the Supabase connection and try again.";
+          console.error("Could not load the published timetable image.", error);
+        }
         state.notifications = notifications;
         state.supportThreads = supportThreads;
         state.supportProfiles = profiles;
@@ -978,7 +913,9 @@ async function refreshData() {
         }
       }
     } catch (error) {
-      state.data = { notices: [], assignments: [], timetable: [], profiles: [] };
+      state.data = { notices: [], assignments: [], profiles: [] };
+      state.timetableImage = null;
+      state.timetableLoadError = null;
       state.maintenance = null;
       state.profile = null;
       state.notifications = [];
@@ -990,6 +927,7 @@ async function refreshData() {
     }
   }
 
+  state.timetableLoading = false;
   updateRoleControls();
   renderAll();
   if (isSupabaseConfigured()) {
@@ -1018,6 +956,7 @@ async function initializeRealtime() {
       ["support_threads", null],
       ["support_messages", null],
       ["profiles", `id=eq.${userId}`],
+      ["portal_timetable_images", null],
     ]
     : [];
 
@@ -1138,9 +1077,6 @@ function initializeSearch() {
     state.directoryRole = event.currentTarget.value;
     renderDirectory();
   });
-  ["timetable-date", "timetable-semester", "timetable-section"].forEach((id) => {
-    $(`#${id}`).addEventListener("change", renderTimetable);
-  });
   $("#global-search").addEventListener("input", (event) => {
     state.globalSearch = event.currentTarget.value.trim().toLowerCase();
     renderNotices();
@@ -1237,6 +1173,82 @@ function initializeEvents() {
       toast(error.message || "Could not refresh your inbox.", "error");
     }
   });
+  $("#refresh-timetable").addEventListener("click", async () => {
+    try {
+      await refreshData();
+      toast(state.loadError || "The latest class timetable is loaded.", state.loadError ? "error" : "success");
+    } catch (error) {
+      toast(error.message || "Could not refresh the timetable.", "error");
+    }
+  });
+  $("#dashboard-timetable").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-go]");
+    if (button) navigateTo(button.dataset.go);
+  });
+  $("#timetable-view").addEventListener("click", (event) => {
+    if (event.target.closest("[data-refresh-timetable]")) $("#refresh-timetable").click();
+  });
+  $("#timetable-image-input").addEventListener("change", (event) => {
+    const input = event.currentTarget;
+    const file = input.files?.[0];
+    const preview = $("#timetable-image-preview");
+    const publishButton = $("#publish-timetable-image");
+    if (state.timetablePreviewUrl) URL.revokeObjectURL(state.timetablePreviewUrl);
+    state.timetablePreviewUrl = null;
+    preview.removeAttribute("src");
+    preview.hidden = true;
+    publishButton.disabled = true;
+    if (!file) {
+      $("#timetable-upload-help").textContent = "JPG, PNG, or WebP · Up to 15 MB";
+      return;
+    }
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 15 * 1024 * 1024) {
+      input.value = "";
+      $("#timetable-upload-help").textContent = "JPG, PNG, or WebP · Up to 15 MB";
+      toast("Choose a JPG, PNG, or WebP timetable image up to 15 MB.", "error");
+      return;
+    }
+    state.timetablePreviewUrl = URL.createObjectURL(file);
+    preview.src = state.timetablePreviewUrl;
+    preview.hidden = false;
+    $("#timetable-upload-help").textContent = `${file.name} · ${(file.size / 1024 / 1024).toFixed(1)} MB`;
+    publishButton.disabled = !isStaff();
+  });
+  $("#timetable-upload-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const input = $("#timetable-image-input");
+    const file = input.files?.[0];
+    const publishButton = $("#publish-timetable-image");
+    if (!file || !isStaff()) {
+      toast("Only the verified technical team or portal owner can publish the timetable.", "error");
+      return;
+    }
+    publishButton.disabled = true;
+    publishButton.querySelector("span").textContent = "Publishing…";
+    try {
+      const result = await publishTimetableImage(file);
+      if (state.timetablePreviewUrl) URL.revokeObjectURL(state.timetablePreviewUrl);
+      state.timetablePreviewUrl = null;
+      form.reset();
+      $("#timetable-image-preview").removeAttribute("src");
+      $("#timetable-image-preview").hidden = true;
+      $("#timetable-upload-help").textContent = "JPG, PNG, or WebP · Up to 15 MB";
+      await refreshData();
+      if (result.cleanupWarning) {
+        toast("The timetable is live, but its previous image could not be removed. Contact the technical team.", "error");
+      } else if (state.loadError) {
+        toast("The image was published, but the portal could not confirm the latest version. Refresh to verify it.", "error");
+      } else {
+        toast("The new BSSE timetable is live for everyone.");
+      }
+    } catch (error) {
+      toast(error.message || "Could not publish the timetable image.", "error");
+    } finally {
+      publishButton.querySelector("span").textContent = "Publish update";
+      publishButton.disabled = !input.files?.length;
+    }
+  });
   document.addEventListener("click", async (event) => {
     if (event.target.closest("#maintenance-signin")) {
       openAuthDialog();
@@ -1248,6 +1260,32 @@ function initializeEvents() {
     }
     if (event.target.closest("[data-support-new]") || event.target.closest("#new-support-thread")) {
       openSupportDialog();
+      return;
+    }
+    const supportStatusAction = event.target.closest("[data-support-status-action]");
+    if (supportStatusAction) {
+      await setSupportThreadStatus(
+        supportStatusAction.dataset.supportThreadId,
+        supportStatusAction.dataset.supportStatusAction,
+        supportStatusAction,
+      );
+      return;
+    }
+    const supportFilter = event.target.closest("[data-support-filter]");
+    if (supportFilter) {
+      state.supportStatusFilter = supportFilter.dataset.supportFilter;
+      const activeThread = state.supportThreads.find((thread) => thread.id === state.activeSupportThreadId);
+      if (activeThread && state.supportStatusFilter !== "all" && activeThread.status !== state.supportStatusFilter) {
+        state.activeSupportThreadId = null;
+        state.supportMessages = [];
+      }
+      renderSupport();
+      return;
+    }
+    if (event.target.closest("[data-support-clear-filters]")) {
+      state.supportStatusFilter = "all";
+      state.supportSearch = "";
+      renderSupport();
       return;
     }
     if (event.target.closest("[data-open-profile-editor]")) {
@@ -1377,18 +1415,16 @@ function initializeEvents() {
       }
       return;
     }
-    const statusSelect = event.target.closest("[data-support-status]");
-    if (statusSelect) {
-      statusSelect.disabled = true;
-      try {
-        await updateSupportThreadStatus(statusSelect.dataset.supportStatus, statusSelect.value);
-        await refreshData();
-        toast("The support request status was updated.");
-      } catch (error) {
-        toast(error.message || "Could not update the support request.", "error");
-        await refreshData();
-      }
-    }
+  });
+  document.addEventListener("input", (event) => {
+    const search = event.target.closest("#support-search");
+    if (!search) return;
+    state.supportSearch = search.value;
+    const selection = search.selectionStart;
+    renderSupport();
+    const updatedSearch = $("#support-search");
+    updatedSearch.focus({ preventScroll: true });
+    updatedSearch.setSelectionRange(selection, selection);
   });
   $("#staff-panel").addEventListener("submit", async (event) => {
     if (event.target.id !== "maintenance-form") return;

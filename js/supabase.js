@@ -11,14 +11,22 @@ const TABLES = Object.freeze({
   support_messages: "support_messages",
   portal_settings: "portal_settings",
   staff_audit_log: "staff_audit_log",
+  portal_timetable_images: "portal_timetable_images",
 });
 const PROFILE_PHOTO_BUCKET = "profile-photos";
+const TIMETABLE_IMAGE_BUCKET = "timetable-images";
 const PROFILE_PHOTO_TYPES = Object.freeze({
   "image/jpeg": "jpg",
   "image/png": "png",
   "image/webp": "webp",
 });
 const MAX_PROFILE_PHOTO_SIZE = 5 * 1024 * 1024;
+const TIMETABLE_IMAGE_TYPES = Object.freeze({
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+});
+const MAX_TIMETABLE_IMAGE_SIZE = 15 * 1024 * 1024;
 const profilePhotoUrls = new Map();
 
 let clientPromise;
@@ -346,6 +354,73 @@ export async function deleteProfilePhoto(path) {
   if (error) throw error;
 }
 
+export async function fetchTimetableImage() {
+  const client = await initializeSupabase();
+  if (!client) return null;
+
+  const { data, error } = await client
+    .from(TABLES.portal_timetable_images)
+    .select("storage_path, original_name, uploaded_by, updated_at")
+    .eq("asset_key", "bsse")
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+
+  const { data: signedData, error: signedError } = await client.storage
+    .from(TIMETABLE_IMAGE_BUCKET)
+    .createSignedUrl(data.storage_path, 3600);
+  if (signedError) throw signedError;
+  return { ...data, signed_url: signedData.signedUrl };
+}
+
+export async function publishTimetableImage(file) {
+  const extension = TIMETABLE_IMAGE_TYPES[file?.type];
+  if (!extension || file.size > MAX_TIMETABLE_IMAGE_SIZE) {
+    throw new Error("Choose a JPG, PNG, or WebP timetable image up to 15 MB.");
+  }
+  const imageName = Array.from(file.name.trim()).slice(0, 180).join("") || `timetable.${extension}`;
+  const client = await initializeSupabase();
+  if (!client) throw new Error("Sign in with a verified technical team or owner account.");
+
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Sign in with a verified technical team or owner account.");
+  const path = `published/timetable-${crypto.randomUUID()}.${extension}`;
+  const { error: uploadError } = await client.storage
+    .from(TIMETABLE_IMAGE_BUCKET)
+    .upload(path, file, { cacheControl: "3600", contentType: file.type, upsert: false });
+  if (uploadError) {
+    if (uploadError.message.toLowerCase().includes("bucket not found")) {
+      throw new Error("Apply the latest Supabase schema before uploading the timetable image.");
+    }
+    throw uploadError;
+  }
+
+  const { data: previousPath, error: publishError } = await client.rpc("publish_timetable_image", {
+    image_path: path,
+    image_name: imageName,
+  });
+  if (publishError) {
+    const { error: cleanupError } = await client.storage.from(TIMETABLE_IMAGE_BUCKET).remove([path]);
+    if (cleanupError) {
+      console.error("Could not remove an unpublished timetable image.", cleanupError);
+    }
+    if (["PGRST202", "42883"].includes(publishError.code)) {
+      throw new Error("Apply the latest Supabase schema before publishing a timetable image.");
+    }
+    throw publishError;
+  }
+
+  let cleanupWarning = false;
+  if (previousPath && previousPath !== path) {
+    const { error: cleanupError } = await client.storage.from(TIMETABLE_IMAGE_BUCKET).remove([previousPath]);
+    if (cleanupError) {
+      cleanupWarning = true;
+      console.error("The timetable was updated, but the previous image could not be removed.", cleanupError);
+    }
+  }
+  return { cleanupWarning };
+}
+
 export async function deleteNotice(noticeId) {
   const client = await initializeSupabase();
   if (!client) throw new Error("Sign in to manage notices.");
@@ -358,22 +433,6 @@ export async function deleteNotice(noticeId) {
     .maybeSingle();
   if (error) throw error;
   if (!data) throw new Error("This notice could not be deleted. It may belong to someone else.");
-}
-
-export async function publishTimetableWeek(schedule) {
-  const client = await initializeSupabase();
-  if (!client) throw new Error("Sign in with a verified CR, Teacher, or Owner account.");
-
-  const { data, error } = await client.rpc("publish_timetable_week", {
-    schedule_entries: schedule.entries,
-    target_semester: schedule.semester,
-    target_section: schedule.section,
-    valid_from: schedule.validFrom,
-    valid_until: schedule.validUntil || null,
-    recurrence: schedule.recurrence,
-  });
-  if (error) throw error;
-  return data;
 }
 
 export async function setPortalMaintenance(enabled, message) {
